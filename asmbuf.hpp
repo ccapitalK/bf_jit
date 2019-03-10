@@ -38,7 +38,6 @@ public:
     }
     ~ASMBuf() {
         if(data != nullptr) {
-            std::cout << "Deleting\n";
             munmap(data, buf_len);
             data = nullptr;
         }
@@ -92,6 +91,13 @@ public:
             data[used++] = byte;
         }
     }
+    template <typename T>
+    void patch_val(size_t pos, T val) {
+        size_t old_used = used;
+        used = pos;
+        write_val(val);
+        used = old_used;
+    }
     void print_buf_instructions() const {
         for(size_t i = 0; i < used; ++i) {
             std::cout.fill('0');
@@ -101,6 +107,9 @@ public:
                 << static_cast<unsigned int>(data[i]);
         }
         std::cout << '\n';
+    }
+    size_t current_offset() const {
+        return used;
     }
 };
 
