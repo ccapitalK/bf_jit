@@ -96,6 +96,10 @@ ASMBuf compile_bf(std::istream &is) {
             rv.write_bytes({0x49, 0x89, 0xd3});
             break;
         case '.':
+            // push %r10
+            rv.write_bytes({0x41, 0x52});
+            // push %r11
+            rv.write_bytes({0x41, 0x53});
             // push %rbp
             rv.write_bytes({0x55});
             // mov %rsp, %rbp
@@ -106,8 +110,16 @@ ASMBuf compile_bf(std::istream &is) {
             rv.write_bytes({0x41, 0xff, 0xd5});
             // pop %rbp
             rv.write_bytes({0x5d});
+            // pop %r11
+            rv.write_bytes({0x41, 0x5b});
+            // pop %r10
+            rv.write_bytes({0x41, 0x5a});
             break;
         case ',':
+            // push %r10
+            rv.write_bytes({0x41, 0x52});
+            // push %r11
+            rv.write_bytes({0x41, 0x53});
             // push %rbp
             rv.write_bytes({0x55});
             // mov %rsp, %rbp
@@ -118,6 +130,10 @@ ASMBuf compile_bf(std::istream &is) {
             rv.write_bytes({0x43, 0x88, 0x04, 0x1a});
             // pop %rbp
             rv.write_bytes({0x5d});
+            // pop %r11
+            rv.write_bytes({0x41, 0x5b});
+            // pop %r10
+            rv.write_bytes({0x41, 0x5a});
             break;
         case '[':
             {
