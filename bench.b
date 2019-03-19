@@ -1,4 +1,4 @@
-taken from github repo kostya/benchmarks/
+[benchmark taken from https://github.com/kostya/benchmarks/]
 
 >++[<+++++++++++++>-]<[[>+>+<<-]>[<+>-]++++++++
 [>++++++++<-]>.[-]<<>++++++++++[>++++++++++[>++

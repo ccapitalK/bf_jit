@@ -21,8 +21,31 @@ extern "C" unsigned char mgetc() {
 
 char bf_mem[BFMEM_LENGTH];
 
+struct BFIns {
+    char op;
+    size_t length;
+private:
+    friend std::istream& operator>>(std::istream &is, BFIns &ins);
+};
+
+std::istream& operator>>(std::istream &is, BFIns &ins) {
+    is >> ins.op;
+    ins.length = 1;
+    switch(ins.op) {
+    case '+':
+    case '-':
+    case '>':
+    case '<':
+        while(is.peek() == ins.op) {
+            ++ins.length;
+            is >> ins.op;
+        }
+    }
+    return is;
+}
+
 ASMBuf compile_bf(std::istream &is) {
-    char c;
+    BFIns ins;
     ASMBuf rv(10);
     // r10 is bf_mem
     // r11 is the offset into bf_mem
@@ -52,48 +75,73 @@ ASMBuf compile_bf(std::istream &is) {
     rv.write_val((size_t)BFMEM_LENGTH);
 
     std::stack<std::pair<uintptr_t,uintptr_t>> loop_starts;
-    for(is >> c; is.good(); is >> c) {
-        switch(c) {
+    for(is >> ins; is.good(); is >> ins) {
+        switch(ins.op) {
         case '+':
-            // mov [r10+r11], %r12b
-            rv.write_bytes({0x47, 0x8a, 0x24, 0x1a});
-            // inc %r12b
-            rv.write_bytes({0x41, 0xfe, 0xc4});
-            // mov %r12b, [r10+r11]
-            rv.write_bytes({0x47, 0x88, 0x24, 0x1a});
+            {
+                if(ins.length == 0) continue;
+                size_t step = ins.length & 0xff;
+                // mov [r10+r11], %r12b
+                rv.write_bytes({0x47, 0x8a, 0x24, 0x1a});
+                // add $step, %r12b
+                rv.write_bytes({0x41, 0x80, 0xc4});
+                rv.write_val((unsigned char)step);
+                // mov %r12b, [r10+r11]
+                rv.write_bytes({0x47, 0x88, 0x24, 0x1a});
+            }
             break;
         case '-':
-            // mov [r10+r11], %r12b
-            rv.write_bytes({0x47, 0x8a, 0x24, 0x1a});
-            // inc %r12b
-            rv.write_bytes({0x41, 0xfe, 0xcc});
-            // mov %r12b, [r10+r11]
-            rv.write_bytes({0x47, 0x88, 0x24, 0x1a});
+            {
+                if(ins.length == 0) continue;
+                size_t step = 0x100 - (ins.length & 0xff);
+                // mov [r10+r11], %r12b
+                rv.write_bytes({0x47, 0x8a, 0x24, 0x1a});
+                // add $step, %r12b
+                rv.write_bytes({0x41, 0x80, 0xc4});
+                rv.write_val((unsigned char)step);
+                // mov %r12b, [r10+r11]
+                rv.write_bytes({0x47, 0x88, 0x24, 0x1a});
+            }
             break;
         case '<':
-            // add $(BFMEM_LENGTH-1), %r11
-            rv.write_bytes({0x49, 0x81, 0xc3});
-            rv.write_val((uint32_t)(BFMEM_LENGTH-1));
-            // xor %rdx, %rdx
-            rv.write_bytes({0x48, 0x31, 0xd2});
-            // mov %r11, %rax
-            rv.write_bytes({0x4c, 0x89, 0xd8});
-            // div %r15
-            rv.write_bytes({0x49, 0xf7, 0xf7});
-            // mov %rdx, %r11
-            rv.write_bytes({0x49, 0x89, 0xd3});
+            {
+                if(ins.length == 0) continue;
+                size_t step = BFMEM_LENGTH -
+                    (ins.length % BFMEM_LENGTH);
+                // add $step, %r11
+                rv.write_bytes({0x49, 0x81, 0xc3});
+                rv.write_val((uint32_t)step);
+                // xor %rdx, %rdx
+                rv.write_bytes({0x48, 0x31, 0xd2});
+                // mov %r11, %rax
+                rv.write_bytes({0x4c, 0x89, 0xd8});
+                // div %r15
+                rv.write_bytes({0x49, 0xf7, 0xf7});
+                // mov %rdx, %r11
+                rv.write_bytes({0x49, 0x89, 0xd3});
+            }
             break;
         case '>':
-            // inc %r11
-            rv.write_bytes({0x49, 0xff, 0xc3});
-            // xor %rdx, %rdx
-            rv.write_bytes({0x48, 0x31, 0xd2});
-            // mov %r11, %rax
-            rv.write_bytes({0x4c, 0x89, 0xd8});
-            // div %r15
-            rv.write_bytes({0x49, 0xf7, 0xf7});
-            // mov %rdx, %r11
-            rv.write_bytes({0x49, 0x89, 0xd3});
+            {
+                if(ins.length == 0) continue;
+                size_t step = ins.length % BFMEM_LENGTH;
+                if(step == 1) {
+                    // inc %r11
+                    rv.write_bytes({0x49, 0xff, 0xc3});
+                } else {
+                    // add $step, %r11
+                    rv.write_bytes({0x49, 0x81, 0xc3});
+                    rv.write_val((uint32_t)step);
+                }
+                // xor %rdx, %rdx
+                rv.write_bytes({0x48, 0x31, 0xd2});
+                // mov %r11, %rax
+                rv.write_bytes({0x4c, 0x89, 0xd8});
+                // div %r15
+                rv.write_bytes({0x49, 0xf7, 0xf7});
+                // mov %rdx, %r11
+                rv.write_bytes({0x49, 0x89, 0xd3});
+            }
             break;
         case '.':
             // push %r10
