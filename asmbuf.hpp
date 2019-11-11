@@ -42,7 +42,29 @@ public:
             data = nullptr;
         }
     }
-    void *get_offset(size_t off) {
+    void grow() {
+        // create new mapping
+        auto old_data = data;
+        data = static_cast<unsigned char*>(mmap(
+            nullptr,
+            2*buf_len,
+            PROT_READ | PROT_WRITE,
+            MAP_ANONYMOUS | MAP_PRIVATE,
+            0,
+            0
+        ));
+        if(data == MAP_FAILED) {
+            throw JITError("Failed to grow ASMBuf: ", strerror(errno));
+        }
+        // copy data
+        memcpy(data, old_data, used);
+        // remove old mapping
+        munmap(old_data, buf_len);
+        // synchronize attributes
+        buf_len *= 2;
+        set_executable(is_exec);
+    }
+    void *get_offset(size_t off) const {
         return static_cast<void*>(data + off);
     }
     void set_executable(bool executable) {
@@ -62,7 +84,8 @@ public:
         }
         for(auto byte: bytes) {
             if(used >= buf_len) {
-                throw JITError("Wrote past the end of asm_buf");
+                grow();
+                // throw JITError("Wrote past the end of asm_buf");
             }
             data[used++] = byte;
         }
@@ -71,8 +94,8 @@ public:
         if(is_exec) {
             throw JITError("Tried to write byte to executable section");
         }
-        if(used + s.length() > buf_len) {
-            throw JITError("Wrote past the end of asm_buf");
+        while(used + s.length() > buf_len) {
+            grow();
         }
         memcpy(data+used, s.data(), s.length());
         used += s.length();
@@ -83,8 +106,8 @@ public:
         if(is_exec) {
             throw JITError("Tried to write byte to executable section");
         }
-        if(used + len > buf_len) {
-            throw JITError("Wrote past the end of asm_buf");
+        while(used + len > buf_len) {
+            grow();
         }
         for(size_t i = 0; i < len; ++i) {
             unsigned char byte = (val >> (8*i)) & 0xff;
