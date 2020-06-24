@@ -42,6 +42,9 @@ public:
             data = nullptr;
         }
     }
+    size_t length() const noexcept {
+        return used;
+    }
     void grow() {
         // create new mapping
         auto old_data = data;

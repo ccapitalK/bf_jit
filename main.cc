@@ -1,9 +1,11 @@
-#include <iostream>
+#include <ctime>
 #include <fstream>
+#include <iostream>
 #include <stack>
 #include "error.hpp"
 #include "asmbuf.hpp"
-#include <sys/syscall.h>
+#include "parse.hpp"
+//#include <sys/syscall.h>
 
 const char* INS_SYSCALL = "\x0f\x05";
 const char* INS_RET  = "\xc3";
@@ -19,194 +21,177 @@ extern "C" unsigned char mgetc() {
     return c;
 }
 
-char bf_mem[BFMEM_LENGTH];
-
-struct BFIns {
-    char op;
-    size_t length;
-private:
-    friend std::istream& operator>>(std::istream &is, BFIns &ins);
-};
-
-std::istream& operator>>(std::istream &is, BFIns &ins) {
-    is >> ins.op;
-    ins.length = 1;
-    switch(ins.op) {
-    case '+':
-    case '-':
-    case '>':
-    case '<':
-        while(is.peek() == ins.op) {
-            ++ins.length;
-            is >> ins.op;
-        }
-    }
-    return is;
+extern "C" int mputchar(int c) {
+    fflush(stdout);
+    return putchar(c);
 }
 
-ASMBuf compile_bf(std::istream &is) {
-    BFIns ins;
+char bf_mem[BFMEM_LENGTH];
+
+ASMBuf compile_bf(std::vector<Instruction> &prog) {
     ASMBuf rv(10);
-    // r10 is bf_mem
+    // Register model:
+    // r10 = &bf_mem[0]
     // r11 is the offset into bf_mem
     // r12 is the value of the current cell
-    // r13 is putchar
-    // r14 is mgetc
+    // r13 is the address of mputchar
+    // r14 is the address of mgetc
     // r15 is BFMEM_LENGTH
 
+    // Prelude to initialize registers as listed above
+    rv.write_bytes({
     // mov $bf_mem, %r10
-    rv.write_bytes({0x49, 0xba});
+        0x49, 0xba
+    });
     rv.write_val((uintptr_t)bf_mem);
 
+    rv.write_bytes({
     // xor %r11, %r11
-    rv.write_bytes({0x4d, 0x31, 0xdb});
-
+        0x4d, 0x31, 0xdb,
     // mov putchar, %r13
-    rv.write_bytes({0x49, 0xbd});
-    rv.write_val((uintptr_t)putchar);
+        0x49, 0xbd
+    });
+    rv.write_val((uintptr_t)mputchar);
 
+    rv.write_bytes({
     // mov mgetc, %r14
-    rv.write_bytes({0x49, 0xbe});
+        0x49, 0xbe
+    });
     rv.write_val((uintptr_t)mgetc);
 
-
+    rv.write_bytes({
     // mov $BFMEM_LENGTH, %r15
-    rv.write_bytes({0x49, 0xbf});
+        0x49, 0xbf
+    });
     rv.write_val((size_t)BFMEM_LENGTH);
 
-    std::stack<std::pair<uintptr_t,uintptr_t>> loop_starts;
-    for(is >> ins; is.good(); is >> ins) {
-        switch(ins.op) {
-        case '+':
+    std::vector<std::pair<uintptr_t,uintptr_t>> loopStarts;
+    for (auto ins: prog) {
+        std::cout << ins << '\n';
+        switch(ins.code_) {
+        case IROpCode::INS_ADD:
             {
-                if(ins.length == 0) continue;
-                size_t step = ins.length & 0xff;
+                size_t step;
+                // TODO: Fix
+                if (ins.a_ > 0) {
+                    step = ins.a_ & 0xff;
+                } else {
+                    step = 0x100 - ((-ins.a_) & 0xff);
+                }
+                rv.write_bytes({
                 // mov [r10+r11], %r12b
-                rv.write_bytes({0x47, 0x8a, 0x24, 0x1a});
+                    0x47, 0x8a, 0x24, 0x1a,
                 // add $step, %r12b
-                rv.write_bytes({0x41, 0x80, 0xc4});
+                    0x41, 0x80, 0xc4
+                });
                 rv.write_val((unsigned char)step);
+                rv.write_bytes({
                 // mov %r12b, [r10+r11]
-                rv.write_bytes({0x47, 0x88, 0x24, 0x1a});
+                    0x47, 0x88, 0x24, 0x1a
+                });
             }
             break;
-        case '-':
+        case IROpCode::INS_ADP:
             {
-                if(ins.length == 0) continue;
-                size_t step = 0x100 - (ins.length & 0xff);
-                // mov [r10+r11], %r12b
-                rv.write_bytes({0x47, 0x8a, 0x24, 0x1a});
-                // add $step, %r12b
-                rv.write_bytes({0x41, 0x80, 0xc4});
-                rv.write_val((unsigned char)step);
-                // mov %r12b, [r10+r11]
-                rv.write_bytes({0x47, 0x88, 0x24, 0x1a});
-            }
-            break;
-        case '<':
-            {
-                if(ins.length == 0) continue;
-                size_t step = BFMEM_LENGTH -
-                    (ins.length % BFMEM_LENGTH);
-                // add $step, %r11
-                rv.write_bytes({0x49, 0x81, 0xc3});
-                rv.write_val((uint32_t)step);
-                // xor %rdx, %rdx
-                rv.write_bytes({0x48, 0x31, 0xd2});
-                // mov %r11, %rax
-                rv.write_bytes({0x4c, 0x89, 0xd8});
-                // div %r15
-                rv.write_bytes({0x49, 0xf7, 0xf7});
-                // mov %rdx, %r11
-                rv.write_bytes({0x49, 0x89, 0xd3});
-            }
-            break;
-        case '>':
-            {
-                if(ins.length == 0) continue;
-                size_t step = ins.length % BFMEM_LENGTH;
+                size_t step;
+                // TODO: Fix
+                if (ins.a_ < 0) {
+                    step = BFMEM_LENGTH -
+                        ((-ins.a_) % BFMEM_LENGTH);
+                } else {
+                    step = ins.a_ % BFMEM_LENGTH;
+                }
                 if(step == 1) {
                     // inc %r11
                     rv.write_bytes({0x49, 0xff, 0xc3});
                 } else {
+                    rv.write_bytes({
                     // add $step, %r11
-                    rv.write_bytes({0x49, 0x81, 0xc3});
+                        0x49, 0x81, 0xc3
+                    });
                     rv.write_val((uint32_t)step);
                 }
+                rv.write_bytes({
                 // xor %rdx, %rdx
-                rv.write_bytes({0x48, 0x31, 0xd2});
+                    0x48, 0x31, 0xd2,
                 // mov %r11, %rax
-                rv.write_bytes({0x4c, 0x89, 0xd8});
+                    0x4c, 0x89, 0xd8,
                 // div %r15
-                rv.write_bytes({0x49, 0xf7, 0xf7});
+                    0x49, 0xf7, 0xf7,
                 // mov %rdx, %r11
-                rv.write_bytes({0x49, 0x89, 0xd3});
+                    0x49, 0x89, 0xd3
+                });
             }
             break;
-        case '.':
+        case IROpCode::INS_OUT:
+            rv.write_bytes({
             // push %r10
-            rv.write_bytes({0x41, 0x52});
+                0x41, 0x52,
             // push %r11
-            rv.write_bytes({0x41, 0x53});
+                0x41, 0x53,
             // push %rbp
-            rv.write_bytes({0x55});
+                0x55,
             // mov %rsp, %rbp
-            rv.write_bytes({0x48, 0x89, 0xe5});
+                0x48, 0x89, 0xe5,
             // mov [r10+r11], %dil
-            rv.write_bytes({0x43, 0x8a, 0x3c, 0x1a});
+                0x43, 0x8a, 0x3c, 0x1a,
             // call *%r13
-            rv.write_bytes({0x41, 0xff, 0xd5});
+                0x41, 0xff, 0xd5,
             // pop %rbp
-            rv.write_bytes({0x5d});
+                0x5d,
             // pop %r11
-            rv.write_bytes({0x41, 0x5b});
+                0x41, 0x5b,
             // pop %r10
-            rv.write_bytes({0x41, 0x5a});
+                0x41, 0x5a
+            });
             break;
-        case ',':
+        case IROpCode::INS_IN:
+            rv.write_bytes({
             // push %r10
-            rv.write_bytes({0x41, 0x52});
+                0x41, 0x52,
             // push %r11
-            rv.write_bytes({0x41, 0x53});
+                0x41, 0x53,
             // push %rbp
-            rv.write_bytes({0x55});
+                0x55,
             // mov %rsp, %rbp
-            rv.write_bytes({0x48, 0x89, 0xe5});
+                0x48, 0x89, 0xe5,
             // call *%r14
-            rv.write_bytes({0x41, 0xff, 0xd6});
+                0x41, 0xff, 0xd6,
             // pop %rbp
-            rv.write_bytes({0x5d});
+                0x5d,
             // pop %r11
-            rv.write_bytes({0x41, 0x5b});
+                0x41, 0x5b,
             // pop %r10
-            rv.write_bytes({0x41, 0x5a});
+                0x41, 0x5a,
             // mov %al, [r10+r11]
-            rv.write_bytes({0x43, 0x88, 0x04, 0x1a});
+                0x43, 0x88, 0x04, 0x1a
+            });
             break;
-        case '[':
+        case IROpCode::INS_LOOP:
             {
                 // mark start of loop
                 uintptr_t loop_start = rv.current_offset();
                 // mov [r10+r11], r12b
-                rv.write_bytes({0x47, 0x8a, 0x24, 0x1a});
+                rv.write_bytes({
+                    0x47, 0x8a, 0x24, 0x1a,
                 // test r12b, r12b
-                rv.write_bytes({0x45, 0x84, 0xe4});
+                    0x45, 0x84, 0xe4
+                });
                 // store patch_loc
                 uintptr_t patch_loc = rv.current_offset();
-                // jz 0
-                rv.write_bytes({0x0f, 0x84, 0x00, 0x00, 0x00, 0x00});
-                // add loop start info to loop_starts
-                loop_starts.emplace(loop_start, patch_loc);
+                rv.write_bytes({
+                    // jz 0
+                    0x0f, 0x84, 0x00, 0x00, 0x00, 0x00
+                });
+                // add loop start info to loopStarts
+                loopStarts.emplace_back(loop_start, patch_loc);
             }
             break;
-        case ']':
+        case IROpCode::INS_END:
             {
-                if(loop_starts.size() < 1) {
-                    throw JITError("Unmatched ]");
-                }
-                auto stack_top = loop_starts.top(); loop_starts.pop();
-                uintptr_t loop_start = stack_top.first;
-                uintptr_t patch_loc = stack_top.second;
+                auto loopIndex = ins.a_;
+                uintptr_t loop_start = loopStarts[loopIndex].first;
+                uintptr_t patch_loc = loopStarts[loopIndex].second;
                 // jmpq diff
                 {
                     uintptr_t current_pos = rv.current_offset();
@@ -230,25 +215,49 @@ ASMBuf compile_bf(std::istream &is) {
                 }
             }
             break;
+        default:
+            break;
         }
-    }
-    if(loop_starts.size() > 0) {
-        throw JITError("Unmatched [");
     }
     rv.write_str(INS_RET);
     return std::move(rv);
 }
+
+double time() {
+    static std::clock_t start_time = std::clock();
+    std::clock_t now = std::clock();
+    double duration = (now-start_time) / (double) CLOCKS_PER_SEC;
+    start_time = now;
+    return duration;
+}
+
+constexpr size_t RDBUF_SIZE = 256*1024;
+static char rdbuf[256*1024];
 
 int main(int argc, const char *argv[]) {
     if(argc < 2) {
         std::cerr << "Usage: " << argv[0] << " infile\n";
         return 1;
     }
-    auto in = std::ifstream(argv[1]);
-    auto ab = std::move(compile_bf(in));
-    //std::cout << "ASM Length: " << ab.current_offset() << "\nGenerated ASM: ";
-    //ab.print_buf_instructions();
-    ab.set_executable(1);
-    enter_buf(ab.get_offset(0));
-    return 0;
+    try {
+        auto in = std::ifstream(argv[1]);
+        in.rdbuf()->pubsetbuf(rdbuf, RDBUF_SIZE);
+        time();
+        Parser parser;
+        parser.feed(in);
+        auto prog = parser.compile();
+        auto ab {compile_bf(prog)};
+        std::cout << "Compiled in " << time() << " seconds\n";
+        std::cout << "Used " << ab.length() << " bytes\n";
+        std::cout << "ASM Length: " << ab.current_offset() << "\nGenerated ASM: ";
+        ab.print_buf_instructions();
+        ab.set_executable(1);
+
+        enter_buf(ab.get_offset(0));
+        std::cout << "Executed in " << time() << " seconds\n";
+        return 0;
+    } catch (JITError &e) {
+        std::cout << "Fatal JITError caught: " << e.what() << '\n';
+        return 1;
+    }
 }
