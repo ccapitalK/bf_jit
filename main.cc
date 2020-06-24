@@ -1,6 +1,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 #include <stack>
 #include "error.hpp"
 #include "asmbuf.hpp"
@@ -29,7 +30,7 @@ extern "C" int mputchar(int c) {
 char bf_mem[BFMEM_LENGTH];
 
 ASMBuf compile_bf(std::vector<Instruction> &prog) {
-    ASMBuf rv(10);
+    ASMBuf rv(1);
     // Register model:
     // r10 = &bf_mem[0]
     // r11 is the offset into bf_mem
@@ -65,7 +66,7 @@ ASMBuf compile_bf(std::vector<Instruction> &prog) {
     });
     rv.write_val((size_t)BFMEM_LENGTH);
 
-    std::vector<std::pair<uintptr_t,uintptr_t>> loopStarts;
+    std::unordered_map<size_t, std::pair<uintptr_t,uintptr_t>> loopStarts;
     for (auto ins: prog) {
         std::cout << ins << '\n';
         switch(ins.code_) {
@@ -86,6 +87,16 @@ ASMBuf compile_bf(std::vector<Instruction> &prog) {
                 });
                 rv.write_val((unsigned char)step);
                 rv.write_bytes({
+                // mov %r12b, [r10+r11]
+                    0x47, 0x88, 0x24, 0x1a
+                });
+            }
+            break;
+        case IROpCode::INS_ZERO:
+            {
+                rv.write_bytes({
+                // xor %r12, %r12
+                    0x4d, 0x31, 0xe4,
                 // mov %r12b, [r10+r11]
                     0x47, 0x88, 0x24, 0x1a
                 });
@@ -184,14 +195,14 @@ ASMBuf compile_bf(std::vector<Instruction> &prog) {
                     0x0f, 0x84, 0x00, 0x00, 0x00, 0x00
                 });
                 // add loop start info to loopStarts
-                loopStarts.emplace_back(loop_start, patch_loc);
+                loopStarts.emplace(ins.a_, std::make_pair(loop_start, patch_loc));
             }
             break;
         case IROpCode::INS_END:
             {
-                auto loopIndex = ins.a_;
-                uintptr_t loop_start = loopStarts[loopIndex].first;
-                uintptr_t patch_loc = loopStarts[loopIndex].second;
+                auto loopInfo = loopStarts[ins.a_];
+                uintptr_t loop_start = loopInfo.first;
+                uintptr_t patch_loc = loopInfo.second;
                 // jmpq diff
                 {
                     uintptr_t current_pos = rv.current_offset();
@@ -220,7 +231,7 @@ ASMBuf compile_bf(std::vector<Instruction> &prog) {
         }
     }
     rv.write_str(INS_RET);
-    return std::move(rv);
+    return rv;
 }
 
 double time() {
@@ -232,7 +243,7 @@ double time() {
 }
 
 constexpr size_t RDBUF_SIZE = 256*1024;
-static char rdbuf[256*1024];
+static char rdbuf[RDBUF_SIZE];
 
 int main(int argc, const char *argv[]) {
     if(argc < 2) {
@@ -249,10 +260,12 @@ int main(int argc, const char *argv[]) {
         auto ab {compile_bf(prog)};
         std::cout << "Compiled in " << time() << " seconds\n";
         std::cout << "Used " << ab.length() << " bytes\n";
-        std::cout << "ASM Length: " << ab.current_offset() << "\nGenerated ASM: ";
-        ab.print_buf_instructions();
-        ab.set_executable(1);
+        std::cout << "ASM Length: " << ab.current_offset() << "\n";
+        // std::cout << "Generated ASM: ";
+        // ab.print_buf_instructions();
 
+        time();
+        ab.set_executable(true);
         enter_buf(ab.get_offset(0));
         std::cout << "Executed in " << time() << " seconds\n";
         return 0;

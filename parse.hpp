@@ -73,7 +73,6 @@ public:
         if (outStream_.size() == 0) {
             return false;
         }
-        auto sawChange{false};
         auto p1 = outStream_.begin();
         auto p2 = p1+1;
         while (p2 != outStream_.end()) {
@@ -91,7 +90,7 @@ public:
                 }
             }
         }
-        for(auto i = 0; i < outStream_.size(); ++i) {
+        for(auto i = 0u; i < outStream_.size(); ++i) {
             if (outStream_[i].code_ == IROpCode::INS_INVALID) {
                 outStream_.resize(i);
                 return true;
@@ -99,12 +98,31 @@ public:
         }
         return false;
     }
+    bool loopFoldPass() {
+        checkNotFinished();
+        if (outStream_.size() < 3) {
+            return false;
+        }
+        bool rv{false};
+        for(auto i = 0u; i + 2 < outStream_.size(); ++i) {
+            auto &c1 = outStream_[i].code_;
+            auto &c2 = outStream_[i+1].code_;
+            auto &c3 = outStream_[i+2].code_;
+            if (c1 == IROpCode::INS_LOOP && c2 == IROpCode::INS_ADD && c3 == IROpCode::INS_END) {
+                rv = true;
+                c1 = IROpCode::INS_ZERO;
+                c2 = IROpCode::INS_INVALID;
+                c3 = IROpCode::INS_INVALID;
+            }
+        }
+        return rv;
+    }
     std::vector<Instruction> compile() {
         checkNotFinished();
         if (loopStack_.size() > 0) {
             throw JITError("Unmatched [");
         }
-        while (constPropagatePass() || deadCodeEliminationPass());
+        while (constPropagatePass() || deadCodeEliminationPass() || loopFoldPass());
         compiled_ = true;
         return std::move(outStream_);
     }

@@ -13,9 +13,7 @@ class ASMBuf {
     bool is_exec;
     unsigned char *data;
 public:
-    ASMBuf(size_t pages) {
-        buf_len = pages * PAGE_SIZE;
-        is_exec = used = 0;
+    ASMBuf(size_t pages) : used(0), buf_len(pages * PAGE_SIZE), is_exec(false) {
         data = static_cast<unsigned char*>(mmap(
             nullptr,
             buf_len,
@@ -30,8 +28,8 @@ public:
     }
     ASMBuf(const ASMBuf &other) = delete;
     ASMBuf(ASMBuf &&other):
-        buf_len(other.buf_len),
         used(other.used),
+        buf_len(other.buf_len),
         is_exec(other.is_exec),
         data(other.data) {
         other.data = nullptr;

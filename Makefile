@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-std=c++17
+CXXFLAGS=-std=c++17 -Wall -Wextra
 LDFLAGS=
 OBJS=asmbuf.o main.o
 
