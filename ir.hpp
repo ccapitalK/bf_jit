@@ -26,8 +26,11 @@ struct Instruction {
     Instruction(IROpCode code, int a) : code_(code), a_(a), b_(0), c_(0) {}
     Instruction(IROpCode code, int a, int b) : code_(code), a_(a), b_(b), c_(0) {}
     Instruction(IROpCode code, int a, int b, int c) : code_(code), a_(a), b_(b), c_(c) {}
+    bool isFoldable() {
+        return code_ == IROpCode::INS_ADD || code_ == IROpCode::INS_ADP;
+    }
     friend std::istream& operator>>(std::istream &is, Instruction &ins);
-    friend std::ostream& operator<<(std::ostream &os, Instruction &ins);
+    friend std::ostream& operator<<(std::ostream &os, const Instruction &ins);
 };
 
 std::istream& operator>>(std::istream &is, Instruction &ins) {
@@ -48,7 +51,7 @@ std::istream& operator>>(std::istream &is, Instruction &ins) {
     return is;
 }
 
-std::ostream& operator<<(std::ostream &os, Instruction &ins) {
+std::ostream& operator<<(std::ostream &os, const Instruction &ins) {
     const char *op = nullptr;
     switch (ins.code_) {
     case IROpCode::INS_ADD:     op = "INS_ADD"; break;
