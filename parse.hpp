@@ -1,6 +1,8 @@
 #pragma once
 
 #include <iostream>
+#include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "asmbuf.hpp"
@@ -48,22 +50,19 @@ public:
     }
     bool constPropagatePass() {
         checkNotFinished();
-        if (outStream_.size() == 0) {
-            return false;
-        }
         auto sawChange{false};
-        auto p1 = outStream_.begin();
-        auto p2 = p1+1;
-        while (p2 != outStream_.end()) {
-            auto code = p1->code_;
-            if (code == p2->code_ && (code == IROpCode::INS_ADD || code == IROpCode::INS_ADP)) {
-                sawChange = true;
-                p1->a_ += p2->a_;
-                p2->code_ = IROpCode::INS_INVALID;
-                ++p2;
+        std::optional<decltype(outStream_)::iterator> foldStart{};
+        for (auto pos = outStream_.begin(); pos != outStream_.end(); ++pos) {
+            auto code = pos->code_;
+            if (code == IROpCode::INS_ADD || code == IROpCode::INS_ADP) {
+                if (foldStart.has_value() && (*foldStart)->code_ == code) {
+                    (*foldStart)->a_ += pos->a_;
+                    pos->code_ = IROpCode::INS_INVALID;
+                } else {
+                    foldStart = pos;
+                }
             } else {
-                p1 = p2;
-                ++p2;
+                foldStart = {};
             }
         }
         return sawChange;
