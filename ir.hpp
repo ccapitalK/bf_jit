@@ -6,9 +6,9 @@
 
 enum class IROpCode {
     INS_ADD,    // Add to current cell
+    INS_MUL,    // v[dp+a_] += v[dp] * b_
     INS_ZERO,   // Set current cell to zero
     INS_ADP,    // Add to data pointer
-    INS_ACL,    // Unused (add multiple?)
     INS_IN,     // call mgetc()
     INS_OUT,    // call mputc()
     INS_LOOP,   // Start of loop
@@ -55,9 +55,9 @@ std::ostream& operator<<(std::ostream &os, const Instruction &ins) {
     const char *op = nullptr;
     switch (ins.code_) {
     case IROpCode::INS_ADD:     op = "INS_ADD"; break;
+    case IROpCode::INS_MUL:     op = "INS_MUL"; break;
     case IROpCode::INS_ZERO:    op = "INS_ZERO"; break;
     case IROpCode::INS_ADP:     op = "INS_ADP"; break;
-    case IROpCode::INS_ACL:     op = "INS_ACL"; break;
     case IROpCode::INS_IN:      op = "INS_IN"; break;
     case IROpCode::INS_OUT:     op = "INS_OUT"; break;
     case IROpCode::INS_LOOP:    op = "INS_LOOP"; break;

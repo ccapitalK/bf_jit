@@ -11,7 +11,8 @@
 const char* INS_SYSCALL = "\x0f\x05";
 const char* INS_RET  = "\xc3";
 
-const int BFMEM_LENGTH = 3000;
+// If this isn't signed, calculations in code generator default to unsigned, and would require a lot of casting
+const ssize_t BFMEM_LENGTH = 4096;
 
 extern "C" unsigned char mgetc() {
     int c = getchar();
@@ -29,15 +30,99 @@ extern "C" int mputchar(int c) {
 
 char bf_mem[BFMEM_LENGTH];
 
-ASMBuf compile_bf(std::vector<Instruction> &prog) {
+template <typename T>
+bool is_pow_2(T v) {
+    const static unsigned char nybbleBitCount[16] = {
+        0, 1, 1, 2,
+        1, 2, 2, 3,
+        1, 2, 2, 3,
+        2, 3, 3, 4
+    };
+    size_t nonZeroBits = 0;
+    while (v) {
+        nonZeroBits += nybbleBitCount[v & 0xf];
+        v >>= 4;
+    }
+    return nonZeroBits == 1;
+}
+
+void interpret(const std::vector<Instruction> &prog) {
+    if(!is_pow_2(BFMEM_LENGTH)) {
+        throw JITError("Need pow 2 arena");
+    }
+    size_t dp{};
+
+    std::vector<std::pair<uintptr_t,uintptr_t>> loopPositions;
+    for (size_t i = 0; i < prog.size(); ++i) {
+        const auto &ins = prog[i];
+        switch (ins.code_) {
+        case IROpCode::INS_LOOP:
+            if (ins.a_ >= (ssize_t)loopPositions.size()) {
+                loopPositions.resize(ins.a_+1);
+            }
+            loopPositions[ins.a_].first = i;
+            break;
+        case IROpCode::INS_END:
+            if (ins.a_ >= (ssize_t)loopPositions.size()) {
+                loopPositions.resize(ins.a_+1);
+            }
+            loopPositions[ins.a_].second = i;
+            break;
+        default:
+            break;
+        }
+    }
+    const auto mask = BFMEM_LENGTH - 1;
+    for (size_t i = 0; i < prog.size(); ++i) {
+        auto &ins = prog[i];
+        switch (ins.code_) {
+        case IROpCode::INS_ADD:
+            bf_mem[dp] += ins.a_;
+            break;
+        case IROpCode::INS_MUL:
+            {
+                auto remote = (dp + ins.a_) & mask;
+                bf_mem[remote] += ins.b_ * bf_mem[dp];
+            }
+            break;
+        case IROpCode::INS_ZERO:
+            bf_mem[dp] = 0;
+            break;
+        case IROpCode::INS_ADP:
+            dp = (dp + ins.a_) & mask;
+            break;
+        case IROpCode::INS_IN:
+            bf_mem[dp] = mgetc();
+            break;
+        case IROpCode::INS_OUT:
+            mputchar(bf_mem[dp]);
+            break;
+        case IROpCode::INS_LOOP:
+            if (bf_mem[dp] == 0) {
+                i = loopPositions[ins.a_].second;
+            }
+            break;
+        case IROpCode::INS_END:
+            i = loopPositions[ins.a_].first - 1;
+            break;
+        default:
+            throw JITError("ICE: Unhandled instruction");
+        }
+    }
+}
+
+ASMBuf compile_bf(const std::vector<Instruction> &prog) {
     ASMBuf rv(1);
+    bool isPow2MemLength = is_pow_2(BFMEM_LENGTH);
+    // Instructions in these comments use "$op $src, $dest" convention
+    //
     // Register model:
     // r10 = &bf_mem[0]
     // r11 is the offset into bf_mem
-    // r12 is the value of the current cell
+    // r12 is sometimes used to store the value of the current cell
     // r13 is the address of mputchar
     // r14 is the address of mgetc
-    // r15 is BFMEM_LENGTH
+    // r15 is (BFMEM_LENGTH-1) if isPow2MemLength, else it is BFMEM_LENGTH
 
     // Prelude to initialize registers as listed above
     rv.write_bytes({
@@ -64,21 +149,15 @@ ASMBuf compile_bf(std::vector<Instruction> &prog) {
     // mov $BFMEM_LENGTH, %r15
         0x49, 0xbf
     });
-    rv.write_val((size_t)BFMEM_LENGTH);
+    rv.write_val((size_t)BFMEM_LENGTH - (size_t)isPow2MemLength);
 
     std::unordered_map<size_t, std::pair<uintptr_t,uintptr_t>> loopStarts;
     for (auto ins: prog) {
-        std::cout << ins << '\n';
+        // std::cout << "Instruction: " << ins << '\n';
         switch(ins.code_) {
         case IROpCode::INS_ADD:
             {
-                size_t step;
-                // TODO: Fix
-                if (ins.a_ > 0) {
-                    step = ins.a_ & 0xff;
-                } else {
-                    step = 0x100 - ((-ins.a_) & 0xff);
-                }
+                size_t step = ins.a_ & 0xff;
                 rv.write_bytes({
                 // mov [r10+r11], %r12b
                     0x47, 0x8a, 0x24, 0x1a,
@@ -102,36 +181,95 @@ ASMBuf compile_bf(std::vector<Instruction> &prog) {
                 });
             }
             break;
+        case IROpCode::INS_MUL:
+            {
+                const size_t destOffset = (BFMEM_LENGTH + ins.a_) % BFMEM_LENGTH;
+                const char multFactor = (char)ins.b_;
+                /// Strategy:
+                /// load offset of remote into rdx
+                if (isPow2MemLength) {
+                    rv.write_bytes({
+                    // mov %r11d, %edx
+                        0x44, 0x89, 0xda,
+                    // add $destOffset, %edx
+                        0x81, 0xc2
+                    });
+                    rv.write_val((uint32_t)destOffset);
+                    rv.write_bytes({
+                    // and %r15d, %edx
+                        0x44, 0x21, 0xfa
+                    });
+                } else {
+                    // FIXME: Replace this with significantly faster branchless if (dp < 0) { dp += BFMEM_LENGTH; }
+                    rv.write_bytes({
+                    // mov %r11d, %eax
+                        0x44, 0x89, 0xd8,
+                    // add $destOffset, %eax
+                        0x05
+                    });
+                    rv.write_val((uint32_t)destOffset);
+                    rv.write_bytes({
+                    // xor %rdx, %rdx
+                        0x48, 0x31, 0xd2,
+                    // div %r15
+                        0x49, 0xf7, 0xf7
+                    });
+                }
+                rv.write_bytes({
+                /// load current cell into r12
+                // mov [r10+r11], %r12b
+                    0x47, 0x8a, 0x24, 0x1a,
+                /// mult r12 by multFactor, store in al
+                // mov multFactor, %al
+                    0xb0, (unsigned char)multFactor,
+                // mul r12b
+                    0x41, 0xf6, 0xe4,
+                /// load value at remote
+                // mov [r10+rdx], %r12b
+                    0x45, 0x8a, 0x24, 0x12,
+                /// add together
+                // add %r12b, %al
+                    0x44, 0x00, 0xe0,
+                /// store at remote
+                // mov %al, [r10+rdx]
+                    0x41, 0x88, 0x04, 0x12,
+                });
+            }
+            break;
         case IROpCode::INS_ADP:
             {
-                size_t step;
-                // TODO: Fix
-                if (ins.a_ < 0) {
-                    step = BFMEM_LENGTH -
-                        ((-ins.a_) % BFMEM_LENGTH);
-                } else {
-                    step = ins.a_ % BFMEM_LENGTH;
-                }
+                const int step = ins.a_ % BFMEM_LENGTH;
                 if(step == 1) {
                     // inc %r11
                     rv.write_bytes({0x49, 0xff, 0xc3});
+                } else if(step == -1) {
+                    // dec %r11
+                    rv.write_bytes({0x49, 0xff, 0xcb});
                 } else {
                     rv.write_bytes({
                     // add $step, %r11
                         0x49, 0x81, 0xc3
                     });
-                    rv.write_val((uint32_t)step);
+                    rv.write_val((int32_t)step);
                 }
-                rv.write_bytes({
-                // xor %rdx, %rdx
-                    0x48, 0x31, 0xd2,
-                // mov %r11, %rax
-                    0x4c, 0x89, 0xd8,
-                // div %r15
-                    0x49, 0xf7, 0xf7,
-                // mov %rdx, %r11
-                    0x49, 0x89, 0xd3
-                });
+                if (isPow2MemLength) {
+                    rv.write_bytes({
+                    // and %r15d, r11d
+                        0x45, 0x21, 0xfb
+                    });
+                } else {
+                    // FIXME: Replace this with significantly faster branchless if (dp < 0) { dp += BFMEM_LENGTH; }
+                    rv.write_bytes({
+                    // xor %rdx, %rdx
+                        0x48, 0x31, 0xd2,
+                    // mov %r11, %rax
+                        0x4c, 0x89, 0xd8,
+                    // div %r15
+                        0x49, 0xf7, 0xf7,
+                    // mov %rdx, %r11
+                        0x49, 0x89, 0xd3
+                    });
+                }
             }
             break;
         case IROpCode::INS_OUT:
@@ -227,7 +365,7 @@ ASMBuf compile_bf(std::vector<Instruction> &prog) {
             }
             break;
         default:
-            break;
+            throw JITError("ICE: Unhandled instruction");
         }
     }
     rv.write_str(INS_RET);
@@ -252,6 +390,9 @@ int main(int argc, const char *argv[]) {
     }
     try {
         auto in = std::ifstream(argv[1]);
+        if (!in.good()) {
+            throw JITError("Failed to open file");
+        }
         in.rdbuf()->pubsetbuf(rdbuf, RDBUF_SIZE);
         time();
         Parser parser;
@@ -267,6 +408,7 @@ int main(int argc, const char *argv[]) {
         time();
         ab.set_executable(true);
         enter_buf(ab.get_offset(0));
+        std::cout << '\n';
         std::cout << "Executed in " << time() << " seconds\n";
         return 0;
     } catch (JITError &e) {

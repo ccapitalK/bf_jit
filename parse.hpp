@@ -51,77 +51,129 @@ public:
     bool constPropagatePass() {
         checkNotFinished();
         auto sawChange{false};
-        std::optional<decltype(outStream_)::iterator> foldStart{};
-        for (auto pos = outStream_.begin(); pos != outStream_.end(); ++pos) {
-            auto code = pos->code_;
-            if (code == IROpCode::INS_ADD || code == IROpCode::INS_ADP) {
-                if (foldStart.has_value() && (*foldStart)->code_ == code) {
-                    (*foldStart)->a_ += pos->a_;
-                    pos->code_ = IROpCode::INS_INVALID;
-                } else {
-                    foldStart = pos;
-                }
+        if (outStream_.size() == 0) {
+            return false;
+        }
+        for (auto foldStart = outStream_.begin(), pos = foldStart+1; pos != outStream_.end(); ++pos) {
+            if (pos->isFoldable() && foldStart->code_ == pos->code_) {
+                foldStart->a_ += pos->a_;
+                pos->code_ = IROpCode::INS_INVALID;
             } else {
-                foldStart = {};
+                foldStart = pos;
             }
         }
         return sawChange;
     }
     bool deadCodeEliminationPass() {
         checkNotFinished();
-        if (outStream_.size() == 0) {
-            return false;
-        }
-        auto p1 = outStream_.begin();
-        auto p2 = p1+1;
-        while (p2 != outStream_.end()) {
-            if (p1->code_ != IROpCode::INS_INVALID) {
-                ++p1;
-                if (p2 == p1) {
-                    ++p2;
-                }
+        auto sawChange{false};
+        auto writePos = outStream_.begin();
+        for (auto &v: outStream_) {
+            if (v.code_ == IROpCode::INS_INVALID) {
+                sawChange = true;
             } else {
-                if (p2->code_ != IROpCode::INS_INVALID) {
-                    *p1 = *p2;
-                    p2->code_ = IROpCode::INS_INVALID;
-                } else {
-                    ++p2;
-                }
+                *(writePos++) = v;
             }
         }
-        for(auto i = 0u; i < outStream_.size(); ++i) {
-            if (outStream_[i].code_ == IROpCode::INS_INVALID) {
-                outStream_.resize(i);
-                return true;
-            }
-        }
-        return false;
+        outStream_.resize(std::distance(outStream_.begin(), writePos));
+        return sawChange;
     }
-    bool loopFoldPass() {
-        checkNotFinished();
-        if (outStream_.size() < 3) {
-            return false;
+    // Pre: the code at [start...end) contains a loop (including []), that can be converted into mults
+    //      i.e. balanced count of < and >, single - at root, only invalid/add/adp
+    void rewriteMultLoop(size_t start, size_t end) {
+        // std::cout << "Making MUL at [" << start << ',' << end << ")\n";
+        // a map of relative offsets to the amount we change them by each loop iteration
+        std::unordered_map<int, int> relativeAdds;
+        auto currOffset = 0;
+#if 0
+        if (outStream_[start].code_ != IROpCode::INS_LOOP || outStream_[end-1].code_ != IROpCode::INS_END) {
+            throw JITError("invalid loop area");
         }
-        bool rv{false};
-        for(auto i = 0u; i + 2 < outStream_.size(); ++i) {
-            auto &c1 = outStream_[i].code_;
-            auto &c2 = outStream_[i+1].code_;
-            auto &c3 = outStream_[i+2].code_;
-            if (c1 == IROpCode::INS_LOOP && c2 == IROpCode::INS_ADD && c3 == IROpCode::INS_END) {
-                rv = true;
-                c1 = IROpCode::INS_ZERO;
-                c2 = IROpCode::INS_INVALID;
-                c3 = IROpCode::INS_INVALID;
+#endif
+        for(auto i = start + 1; i < end - 1; ++i) {
+            auto &ins = outStream_[i];
+            switch (ins.code_) {
+            case IROpCode::INS_ADD:
+                if (currOffset != 0) {
+                    relativeAdds[currOffset] += ins.a_;
+                }
+                break;
+            case IROpCode::INS_ADP:
+                currOffset += ins.a_;
+                break;
+            case IROpCode::INS_INVALID:
+                break;
+            default:
+                throw JITError("ICE: Unexpected instruction");
             }
         }
-        return rv;
+#if 0
+        if (currOffset != 0) {
+            throw JITError("invalid loop area");
+        }
+#endif
+        auto writeIndex = start;
+        for (auto [x, v]: relativeAdds) {
+            if (v != 0) {
+                outStream_[writeIndex++] = Instruction{IROpCode::INS_MUL, x, v};
+            }
+        }
+        outStream_[writeIndex++] = Instruction{IROpCode::INS_ZERO};
+        while (writeIndex < end) outStream_[writeIndex++].code_ = IROpCode::INS_INVALID;
+    }
+    bool makeMultPass() {
+        checkNotFinished();
+        std::optional<size_t> loopStart{};
+        ssize_t currOffset{};
+        ssize_t origModBy{};
+        auto sawChange{false};
+        for (auto i = 0u; i < outStream_.size(); ++i) {
+            auto &ins = outStream_[i];
+            switch (ins.code_) {
+            case IROpCode::INS_ADD:
+                if (currOffset == 0) {
+                    origModBy += ins.a_;
+                }
+                break;
+            case IROpCode::INS_ADP:
+                currOffset += ins.a_;
+                break;
+            case IROpCode::INS_INVALID:
+                break;
+            case IROpCode::INS_LOOP:
+                loopStart = i;
+                currOffset = 0;
+                origModBy = 0;
+                break;
+            case IROpCode::INS_END:
+                if (loopStart.has_value() && origModBy == -1 && currOffset == 0) {
+                    sawChange = true;
+                    rewriteMultLoop(*loopStart, i+1);
+                }
+                loopStart = {};
+                break;
+            default:
+                loopStart = {};
+            }
+        }
+        return sawChange;
+    }
+    bool optimize() {
+        // Explicit, to avoid short circuit eval
+        auto v = false;
+        v = constPropagatePass() || v;
+        v = deadCodeEliminationPass() || v;
+        v = makeMultPass() || v;
+        return v;
     }
     std::vector<Instruction> compile() {
         checkNotFinished();
         if (loopStack_.size() > 0) {
             throw JITError("Unmatched [");
         }
-        while (constPropagatePass() || deadCodeEliminationPass() || loopFoldPass());
+        size_t numOptPasses = 1;
+        while (optimize()) ++numOptPasses;
+        std::cout << "Optimized " << numOptPasses << " times\n";
         compiled_ = true;
         return std::move(outStream_);
     }
