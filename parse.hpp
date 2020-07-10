@@ -163,11 +163,11 @@ class Parser {
     }
     bool optimize() {
         // Explicit, to avoid short circuit eval
-        auto v = false;
-        v = constPropagatePass() || v;
-        v = deadCodeEliminationPass() || v;
-        v = makeMultPass() || v;
-        return v;
+        auto sawChange = false;
+        sawChange = constPropagatePass() || sawChange;
+        sawChange = deadCodeEliminationPass() || sawChange;
+        sawChange = makeMultPass() || sawChange;
+        return sawChange;
     }
     std::vector<Instruction> compile() {
         checkNotFinished();
@@ -175,8 +175,9 @@ class Parser {
             throw JITError("Unmatched [");
         }
         size_t numOptPasses = 1;
-        while (optimize())
+        while (optimize()) {
             ++numOptPasses;
+        }
         std::cout << "Optimized " << numOptPasses << " times\n";
         compiled_ = true;
         return std::move(outStream_);
