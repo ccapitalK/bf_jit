@@ -375,6 +375,7 @@ double time() {
     return duration;
 }
 
+// Optimization to minimize number of read() calls made by ifstream
 constexpr size_t RDBUF_SIZE = 256 * 1024;
 static char rdbuf[RDBUF_SIZE];
 
@@ -385,11 +386,12 @@ int main(int argc, const char *argv[]) {
     }
     try {
         const int BFMEM_LENGTH = 4096;
-        auto in = std::ifstream(argv[1]);
+        std::ifstream in;
+        in.rdbuf()->pubsetbuf(rdbuf, RDBUF_SIZE);
+        in.open(argv[1]);
         if (!in.good()) {
             throw JITError("Failed to open file");
         }
-        in.rdbuf()->pubsetbuf(rdbuf, RDBUF_SIZE);
         time();
         Parser parser;
         parser.feed(in);
