@@ -10,9 +10,6 @@
 const char *INS_SYSCALL = "\x0f\x05";
 const char *INS_RET = "\xc3";
 
-// If this isn't signed, calculations in the code generator default to unsigned, and would require a lot of casting
-const ssize_t BFMEM_LENGTH = 4096;
-
 extern "C" unsigned char mgetc() {
     int c = getchar();
     if (c == EOF) {
@@ -27,8 +24,6 @@ extern "C" int mputchar(int c) {
     return putchar(c);
 }
 
-char bf_mem[BFMEM_LENGTH];
-
 template <typename T> bool is_pow_2(T v) {
     size_t nonZeroBits = 0;
     for (; v != 0; v >>= 1) {
@@ -37,10 +32,8 @@ template <typename T> bool is_pow_2(T v) {
     return nonZeroBits == 1;
 }
 
-void interpret(const std::vector<Instruction> &prog) {
-    if (!is_pow_2(BFMEM_LENGTH)) {
-        throw JITError("Need pow 2 arena");
-    }
+void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem) {
+    const ssize_t BFMEM_LENGTH = bfMem.size();
     size_t dp{};
 
     std::vector<std::pair<uintptr_t, uintptr_t>> loopPositions;
@@ -63,31 +56,30 @@ void interpret(const std::vector<Instruction> &prog) {
             break;
         }
     }
-    const auto mask = BFMEM_LENGTH - 1;
     for (size_t i = 0; i < prog.size(); ++i) {
         auto &ins = prog[i];
         switch (ins.code_) {
         case IROpCode::INS_ADD:
-            bf_mem[dp] += ins.a_;
+            bfMem[dp] += ins.a_;
             break;
         case IROpCode::INS_MUL: {
-            auto remote = (dp + ins.a_) & mask;
-            bf_mem[remote] += ins.b_ * bf_mem[dp];
+            auto remote = (dp + ins.a_) % BFMEM_LENGTH;
+            bfMem[remote] += ins.b_ * bfMem[dp];
         } break;
         case IROpCode::INS_ZERO:
-            bf_mem[dp] = 0;
+            bfMem[dp] = 0;
             break;
         case IROpCode::INS_ADP:
-            dp = (dp + ins.a_) & mask;
+            dp = (dp + ins.a_) % BFMEM_LENGTH;
             break;
         case IROpCode::INS_IN:
-            bf_mem[dp] = mgetc();
+            bfMem[dp] = mgetc();
             break;
         case IROpCode::INS_OUT:
-            mputchar(bf_mem[dp]);
+            mputchar(bfMem[dp]);
             break;
         case IROpCode::INS_LOOP:
-            if (bf_mem[dp] == 0) {
+            if (bfMem[dp] == 0) {
                 i = loopPositions[ins.a_].second;
             }
             break;
@@ -100,14 +92,18 @@ void interpret(const std::vector<Instruction> &prog) {
     }
 }
 
-ASMBuf compile_bf(const std::vector<Instruction> &prog) {
+ASMBuf compile_bf(const std::vector<Instruction> &prog, std::vector<char> &bfMem) {
+    // If this isn't signed, calculations in the code
+    // generator default to unsigned, and would require a lot of casting
+    const ssize_t BFMEM_LENGTH = bfMem.size();
+
     ASMBuf rv(1);
     bool isPow2MemLength = is_pow_2(BFMEM_LENGTH);
     // Instructions in these comments use intel syntax
     //
     // Register model:
-    // r10 = &bf_mem[0]
-    // r11 is the offset into bf_mem
+    // r10 = &bfMem[0]
+    // r11 is the offset into bfMem
     // r12 is sometimes used to store the value of the current cell
     // r13 is the address of mputchar
     // r14 is the address of mgetc
@@ -126,10 +122,10 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
     });
     /// Prelude to initialize registers as listed above
     rv.write_bytes({
-    // mov %r10, $bf_mem
+    // mov %r10, $bfMem
         0x49, 0xba
     });
-    rv.write_val((uintptr_t)bf_mem);
+    rv.write_val((uintptr_t)bfMem.data());
 
     rv.write_bytes({
     // xor %r11, %r11
@@ -199,7 +195,7 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                 /// eax -= r15d * (eax >= r15d);
                 /// This works because at this point, we know that 0 <= r11d < 2*r15d - 1
                 rv.write_bytes({
-                // xor %edx, %edx
+                // mov %edx, %edx
                     0x31, 0xd2,
                 // cmp %eax, %r15d
                     0x44, 0x39, 0xf8,
@@ -372,10 +368,10 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
 }
 
 double time() {
-    static std::clock_t start_time = std::clock();
+    static std::clock_t startTime = std::clock();
     std::clock_t now = std::clock();
-    double duration = (now - start_time) / (double)CLOCKS_PER_SEC;
-    start_time = now;
+    double duration = (now - startTime) / (double)CLOCKS_PER_SEC;
+    startTime = now;
     return duration;
 }
 
@@ -388,6 +384,7 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
     try {
+        const int BFMEM_LENGTH = 4096;
         auto in = std::ifstream(argv[1]);
         if (!in.good()) {
             throw JITError("Failed to open file");
@@ -396,8 +393,10 @@ int main(int argc, const char *argv[]) {
         time();
         Parser parser;
         parser.feed(in);
+        std::vector<char> bfMem(BFMEM_LENGTH);
+        memset(bfMem.data(), 0, BFMEM_LENGTH);
         auto prog = parser.compile();
-        auto ab{compile_bf(prog)};
+        auto ab{compile_bf(prog, bfMem)};
         std::cout << "Compiled in " << time() << " seconds\n";
         std::cout << "Used " << ab.length() << " bytes\n";
         std::cout << "ASM Length: " << ab.current_offset() << "\n";
