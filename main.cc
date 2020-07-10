@@ -124,7 +124,7 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
     // r14 is the address of mgetc
     // r15 is (BFMEM_LENGTH-1) if isPow2MemLength, else it is BFMEM_LENGTH
 
-    // Prelude to initialize registers as listed above
+    /// Prelude to initialize registers as listed above
     rv.write_bytes({
     // mov $bf_mem, %r10
         0x49, 0xba
@@ -183,39 +183,40 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
             break;
         case IROpCode::INS_MUL:
             {
-                const size_t destOffset = (BFMEM_LENGTH + ins.a_) % BFMEM_LENGTH;
+                // map ins.a_ into [0, BFMEM_LENGTH), needed because of C++'s % weirdness with negative numbers
+                const size_t destOffset = ((ins.a_ % BFMEM_LENGTH) + BFMEM_LENGTH) % BFMEM_LENGTH;
                 const char multFactor = (char)ins.b_;
                 /// Strategy:
-                /// load offset of remote into rdx
+                /// load offset of remote into rax
+                rv.write_bytes({
+                // mov %r11d, %eax
+                    0x44, 0x89, 0xd8,
+                // add $destOffset, %eax
+                    0x05
+                });
+                rv.write_val((uint32_t)destOffset);
                 if (isPow2MemLength) {
                     rv.write_bytes({
-                    // mov %r11d, %edx
-                        0x44, 0x89, 0xda,
-                    // add $destOffset, %edx
-                        0x81, 0xc2
-                    });
-                    rv.write_val((uint32_t)destOffset);
-                    rv.write_bytes({
-                    // and %r15d, %edx
-                        0x44, 0x21, 0xfa
+                    // and %r15d, %eax
+                        0x44, 0x21, 0xf8
                     });
                 } else {
-                    // FIXME: Replace this with significantly faster branchless if (dp < 0) { dp += BFMEM_LENGTH; }
+                    /// eax -= r15d * (eax >= r15d);
+                    /// This works because at this point, we know that 0 <= r11d < 2*r15d - 1
                     rv.write_bytes({
-                    // mov %r11d, %eax
-                        0x44, 0x89, 0xd8,
-                    // add $destOffset, %eax
-                        0x05
-                    });
-                    rv.write_val((uint32_t)destOffset);
-                    rv.write_bytes({
-                    // xor %rdx, %rdx
-                        0x48, 0x31, 0xd2,
-                    // div %r15
-                        0x49, 0xf7, 0xf7
+                    // xor %edx, %edx
+                        0x31, 0xd2,
+                    // cmp %r15d, %eax
+                        0x44, 0x39, 0xf8,
+                    // cmovge %edx, %r15d
+                        0x41, 0x0f, 0x4d, 0xd7,
+                    // sub %edx, %eax
+                        0x29, 0xd0
                     });
                 }
                 rv.write_bytes({
+                // mov %rax, %rdx
+                    0x48, 0x89, 0xc2,
                 /// load current cell into r12
                 // mov [r10+r11], %r12b
                     0x47, 0x8a, 0x24, 0x1a,
@@ -238,19 +239,17 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
             break;
         case IROpCode::INS_ADP:
             {
-                const int step = ins.a_ % BFMEM_LENGTH;
+                // map ins.a_ into [0, BFMEM_LENGTH), needed because of C++'s % weirdness with negative numbers
+                const int step = ((ins.a_ % BFMEM_LENGTH) + BFMEM_LENGTH) % BFMEM_LENGTH;
                 if(step == 1) {
                     // inc %r11
                     rv.write_bytes({0x49, 0xff, 0xc3});
-                } else if(step == -1) {
-                    // dec %r11
-                    rv.write_bytes({0x49, 0xff, 0xcb});
                 } else {
                     rv.write_bytes({
                     // add $step, %r11
                         0x49, 0x81, 0xc3
                     });
-                    rv.write_val((int32_t)step);
+                    rv.write_val((uint32_t)step);
                 }
                 if (isPow2MemLength) {
                     rv.write_bytes({
@@ -258,16 +257,17 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                         0x45, 0x21, 0xfb
                     });
                 } else {
-                    // FIXME: Replace this with significantly faster branchless if (dp < 0) { dp += BFMEM_LENGTH; }
+                    /// r11d -= r15d * (r11d >= r15d);
+                    /// This works because at this point, we know that 0 <= r11d < 2*r15d - 1
                     rv.write_bytes({
-                    // xor %rdx, %rdx
-                        0x48, 0x31, 0xd2,
-                    // mov %r11, %rax
-                        0x4c, 0x89, 0xd8,
-                    // div %r15
-                        0x49, 0xf7, 0xf7,
-                    // mov %rdx, %r11
-                        0x49, 0x89, 0xd3
+                    // xor %eax, %eax
+                        0x31, 0xc0,
+                    // cmp %r15d, %r11d
+                        0x45, 0x39, 0xfb,
+                    // cmovge %r15d, %eax
+                        0x41, 0x0f, 0x4d, 0xc7,
+                    // sub %eax, %r11d
+                        0x41, 0x29, 0xc3,
                     });
                 }
             }
