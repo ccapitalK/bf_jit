@@ -71,6 +71,8 @@ public:
         for (auto &v: outStream_) {
             if (v.code_ == IROpCode::INS_INVALID) {
                 sawChange = true;
+            } else if ((v.code_ == IROpCode::INS_ADD || v.code_ == IROpCode::INS_ADP) && v.a_ == 0) {
+                sawChange = true;
             } else {
                 *(writePos++) = v;
             }
