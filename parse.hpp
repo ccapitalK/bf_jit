@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <optional>
+#include <stack>
 #include <unordered_map>
 #include <vector>
 
@@ -9,20 +10,19 @@
 #include "error.hpp"
 #include "ir.hpp"
 
-//ASMBuf compile_bf(std::vector<Instruction> &is);
-
 class Parser {
     std::vector<Instruction> outStream_;
     std::stack<int> loopStack_;
     size_t loopCount_{};
     bool compiled_{false};
-public:
+
+  public:
     void checkNotFinished() const {
         if (compiled_) {
             throw JITError("Parser used after compilation");
         }
     }
-    void feed(std::istream& is) {
+    void feed(std::istream &is) {
         checkNotFinished();
         while (is.good()) {
             Instruction ins;
@@ -54,7 +54,7 @@ public:
         if (outStream_.size() == 0) {
             return false;
         }
-        for (auto foldStart = outStream_.begin(), pos = foldStart+1; pos != outStream_.end(); ++pos) {
+        for (auto foldStart = outStream_.begin(), pos = foldStart + 1; pos != outStream_.end(); ++pos) {
             if (pos->isFoldable() && foldStart->code_ == pos->code_) {
                 foldStart->a_ += pos->a_;
                 pos->code_ = IROpCode::INS_INVALID;
@@ -68,7 +68,7 @@ public:
         checkNotFinished();
         auto sawChange{false};
         auto writePos = outStream_.begin();
-        for (auto &v: outStream_) {
+        for (auto &v : outStream_) {
             if (v.code_ == IROpCode::INS_INVALID) {
                 sawChange = true;
             } else if ((v.code_ == IROpCode::INS_ADD || v.code_ == IROpCode::INS_ADP) && v.a_ == 0) {
@@ -92,7 +92,7 @@ public:
             throw JITError("invalid loop area");
         }
 #endif
-        for(auto i = start + 1; i < end - 1; ++i) {
+        for (auto i = start + 1; i < end - 1; ++i) {
             auto &ins = outStream_[i];
             switch (ins.code_) {
             case IROpCode::INS_ADD:
@@ -115,13 +115,14 @@ public:
         }
 #endif
         auto writeIndex = start;
-        for (auto [x, v]: relativeAdds) {
+        for (auto [x, v] : relativeAdds) {
             if (v != 0) {
                 outStream_[writeIndex++] = Instruction{IROpCode::INS_MUL, x, v};
             }
         }
         outStream_[writeIndex++] = Instruction{IROpCode::INS_ZERO};
-        while (writeIndex < end) outStream_[writeIndex++].code_ = IROpCode::INS_INVALID;
+        while (writeIndex < end)
+            outStream_[writeIndex++].code_ = IROpCode::INS_INVALID;
     }
     bool makeMultPass() {
         checkNotFinished();
@@ -150,7 +151,7 @@ public:
             case IROpCode::INS_END:
                 if (loopStart.has_value() && origModBy == -1 && currOffset == 0) {
                     sawChange = true;
-                    rewriteMultLoop(*loopStart, i+1);
+                    rewriteMultLoop(*loopStart, i + 1);
                 }
                 loopStart = {};
                 break;
@@ -174,10 +175,10 @@ public:
             throw JITError("Unmatched [");
         }
         size_t numOptPasses = 1;
-        while (optimize()) ++numOptPasses;
+        while (optimize())
+            ++numOptPasses;
         std::cout << "Optimized " << numOptPasses << " times\n";
         compiled_ = true;
         return std::move(outStream_);
     }
 };
-
