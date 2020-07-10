@@ -103,7 +103,7 @@ void interpret(const std::vector<Instruction> &prog) {
 ASMBuf compile_bf(const std::vector<Instruction> &prog) {
     ASMBuf rv(1);
     bool isPow2MemLength = is_pow_2(BFMEM_LENGTH);
-    // Instructions in these comments use "$op $src, $dest" convention
+    // Instructions in these comments use intel syntax
     //
     // Register model:
     // r10 = &bf_mem[0]
@@ -126,7 +126,7 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
     });
     /// Prelude to initialize registers as listed above
     rv.write_bytes({
-    // mov $bf_mem, %r10
+    // mov %r10, $bf_mem
         0x49, 0xba
     });
     rv.write_val((uintptr_t)bf_mem);
@@ -134,19 +134,19 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
     rv.write_bytes({
     // xor %r11, %r11
         0x4d, 0x31, 0xdb,
-    // mov putchar, %r13
+    // mov %r13, putchar
         0x49, 0xbd
     });
     rv.write_val((uintptr_t)mputchar);
 
     rv.write_bytes({
-    // mov mgetc, %r14
+    // mov %r14, mgetc
         0x49, 0xbe
     });
     rv.write_val((uintptr_t)mgetc);
 
     rv.write_bytes({
-    // mov $BFMEM_LENGTH, %r15
+    // mov %r15, $BFMEM_LENGTH
         0x49, 0xbf
     });
     rv.write_val((size_t)BFMEM_LENGTH - (size_t)isPow2MemLength);
@@ -158,14 +158,14 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
         case IROpCode::INS_ADD: {
             size_t step = ins.a_ & 0xff;
             rv.write_bytes({
-            // mov [r10+r11], %r12b
+            // mov %r12b, [r10+r11]
                 0x47, 0x8a, 0x24, 0x1a,
-            // add $step, %r12b
+            // add %r12b, $step
                 0x41, 0x80, 0xc4
             });
             rv.write_val((unsigned char)step);
             rv.write_bytes({
-            // mov %r12b, [r10+r11]
+            // mov [r10+r11], %r12b
                 0x47, 0x88, 0x24, 0x1a
             });
         } break;
@@ -173,7 +173,7 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
             rv.write_bytes({
             // xor %r12, %r12
                 0x4d, 0x31, 0xe4,
-            // mov %r12b, [r10+r11]
+            // mov [r10+r11], %r12b
                 0x47, 0x88, 0x24, 0x1a
             });
         } break;
@@ -184,15 +184,15 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
             /// Strategy:
             /// load offset of remote into rax
             rv.write_bytes({
-            // mov %r11d, %eax
+            // mov %eax, %r11d
                 0x44, 0x89, 0xd8,
-            // add $destOffset, %eax
+            // add %eax, $destOffset
                 0x05
             });
             rv.write_val((uint32_t)destOffset);
             if (isPow2MemLength) {
                 rv.write_bytes({
-                // and %r15d, %eax
+                // and %eax, %r15d
                     0x44, 0x21, 0xf8
                 });
             } else {
@@ -201,33 +201,33 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                 rv.write_bytes({
                 // xor %edx, %edx
                     0x31, 0xd2,
-                // cmp %r15d, %eax
+                // cmp %eax, %r15d
                     0x44, 0x39, 0xf8,
-                // cmovge %edx, %r15d
+                // cmovge %r15d, %edx
                     0x41, 0x0f, 0x4d, 0xd7,
-                // sub %edx, %eax
+                // sub %eax, %edx
                     0x29, 0xd0
                 });
             }
             rv.write_bytes({
-            // mov %rax, %rdx
+            // mov %rdx, %rax
                 0x48, 0x89, 0xc2,
             /// load current cell into r12
-            // mov [r10+r11], %r12b
+            // mov %r12b, [r10+r11]
                 0x47, 0x8a, 0x24, 0x1a,
             /// mult r12 by multFactor, store in al
-            // mov multFactor, %al
+            // mov %al, multFactor
                 0xb0, (unsigned char)multFactor,
             // mul r12b
                 0x41, 0xf6, 0xe4,
             /// load value at remote
-            // mov [r10+rdx], %r12b
+            // mov %r12b, [r10+rdx]
                 0x45, 0x8a, 0x24, 0x12,
             /// add together
-            // add %r12b, %al
+            // add %al, %r12b
                 0x44, 0x00, 0xe0,
             /// store at remote
-            // mov %al, [r10+rdx]
+            // mov [r10+rdx], %al
                 0x41, 0x88, 0x04, 0x12,
             });
         } break;
@@ -241,14 +241,14 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                 });
             } else {
                 rv.write_bytes({
-                // add $step, %r11
+                // add %r11, $step
                     0x49, 0x81, 0xc3
                 });
                 rv.write_val((uint32_t)step);
             }
             if (isPow2MemLength) {
                 rv.write_bytes({
-                // and %r15d, r11d
+                // and %r11d, r15d
                     0x45, 0x21, 0xfb
                 });
             } else {
@@ -257,11 +257,11 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                 rv.write_bytes({
                 // xor %eax, %eax
                     0x31, 0xc0,
-                // cmp %r15d, %r11d
+                // cmp %r11d, %r15d
                     0x45, 0x39, 0xfb,
-                // cmovge %r15d, %eax
+                // cmovge %eax, %r15d
                     0x41, 0x0f, 0x4d, 0xc7,
-                // sub %eax, %r11d
+                // sub %r11d, %eax
                     0x41, 0x29, 0xc3,
                 });
             }
@@ -274,9 +274,9 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                 0x41, 0x53,
             // push %rbp
                 0x55,
-            // mov %rsp, %rbp
+            // mov %rbp, %rsp
                 0x48, 0x89, 0xe5,
-            // mov [r10+r11], %dil
+            // mov %dil, [r10+r11]
                 0x43, 0x8a, 0x3c, 0x1a,
             // call *%r13
                 0x41, 0xff, 0xd5,
@@ -296,7 +296,7 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                 0x41, 0x53,
             // push %rbp
                 0x55,
-            // mov %rsp, %rbp
+            // mov %rbp, %rsp
                 0x48, 0x89, 0xe5,
             // call *%r14
                 0x41, 0xff, 0xd6,
@@ -306,17 +306,17 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                 0x41, 0x5b,
             // pop %r10
                 0x41, 0x5a,
-            // mov %al, [r10+r11]
+            // mov [r10+r11], %al
                 0x43, 0x88, 0x04, 0x1a
             });
             break;
         case IROpCode::INS_LOOP: {
             // mark start of loop
             uintptr_t loop_start = rv.current_offset();
-            // mov [r10+r11], r12b
             rv.write_bytes({
+            // mov %r12b, [r10+r11]
                 0x47, 0x8a, 0x24, 0x1a,
-            // test r12b, r12b
+            // test %r12b, %r12b
                 0x45, 0x84, 0xe4
             });
             // store patch_loc
@@ -337,7 +337,7 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
                 const int32_t jump_instruction_length = 5;
                 const int32_t rel_off = (int32_t)loop_start - (int32_t)current_pos - jump_instruction_length;
                 rv.write_bytes({
-                // jmpq diff
+                // jmpq $diff
                     0xe9
                 });
                 rv.write_val(rel_off);
