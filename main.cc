@@ -124,6 +124,17 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
     // r14 is the address of mgetc
     // r15 is (BFMEM_LENGTH-1) if isPow2MemLength, else it is BFMEM_LENGTH
 
+    /// Prelude to save callee-saved registers
+    rv.write_bytes({
+        // push %r12
+        0x41, 0x54,
+        // push %r13
+        0x41, 0x55,
+        // push %r14
+        0x41, 0x56,
+        // push %r15
+        0x41, 0x57
+    });
     /// Prelude to initialize registers as listed above
     rv.write_bytes({
     // mov $bf_mem, %r10
@@ -368,6 +379,17 @@ ASMBuf compile_bf(const std::vector<Instruction> &prog) {
             throw JITError("ICE: Unhandled instruction");
         }
     }
+    /// Restore callee-saved registers
+    rv.write_bytes({
+        // pop %r15
+        0x41, 0x5f,
+        // pop %r14
+        0x41, 0x5e,
+        // pop %r13
+        0x41, 0x5d,
+        // pop %r12
+        0x41, 0x5c
+    });
     rv.write_str(INS_RET);
     return rv;
 }
