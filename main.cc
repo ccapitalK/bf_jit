@@ -103,7 +103,10 @@ int main(int argc, const char *argv[]) {
         CodeGenerator codeGenerator(bfMem);
         auto offset = codeGenerator.compile(prog);
         std::cout << "Compiled in " << time() << " seconds\n";
-        std::cout << "Used " << offset << " bytes\n";
+        std::cout << "Used " << codeGenerator.generatedLength() << " bytes\n";
+        if (0) {
+            std::cout << "Hex: " << codeGenerator.instructionHexDump() << '\n';
+        }
 
         time();
         codeGenerator.enter(offset);

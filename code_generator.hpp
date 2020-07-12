@@ -39,4 +39,6 @@ class CodeGenerator {
     CodeGenerator(std::vector<char> &bfMem) : bfMem_{bfMem} {}
     ASMBufOffset compile(const std::vector<Instruction> &prog);
     void enter(ASMBufOffset);
+    std::string instructionHexDump() const;
+    size_t generatedLength() const;
 };

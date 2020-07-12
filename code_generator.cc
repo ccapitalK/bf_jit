@@ -315,3 +315,11 @@ void CodeGenerator::enter(ASMBufOffset offset) {
     buf_.set_executable(true);
     buf_.enter(offset);
 }
+
+std::string CodeGenerator::instructionHexDump() const {
+    return buf_.instructionHexDump();
+}
+
+size_t CodeGenerator::generatedLength() const {
+    return buf_.current_offset();
+}

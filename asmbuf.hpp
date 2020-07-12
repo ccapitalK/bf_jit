@@ -3,6 +3,7 @@
 #include <cstring>
 #include <iostream>
 #include <string_view>
+#include <sstream>
 #include <sys/mman.h>
 
 const int PAGE_SIZE = 4096;
@@ -74,16 +75,6 @@ class ASMBuf {
             data[used++] = byte;
         }
     }
-    void write_str(const std::string_view s) {
-        if (is_exec) {
-            throw JITError("Tried to write byte to executable section");
-        }
-        while (used + s.length() > buf_len) {
-            grow();
-        }
-        memcpy(data + used, s.data(), s.length());
-        used += s.length();
-    }
     template <typename T> void write_val(T val) {
         constexpr size_t len = sizeof(T);
         if (is_exec) {
@@ -103,15 +94,17 @@ class ASMBuf {
         write_val(val);
         used = old_used;
     }
-    void print_buf_instructions() const {
-        for (size_t i = 0; i < used; ++i) {
-            std::cout.fill('0');
-            std::cout.width(2);
-            std::cout << std::hex << static_cast<unsigned int>(data[i]);
-        }
-        std::cout << '\n';
-    }
     ASMBufOffset current_offset() const { return used; }
+    std::string instructionHexDump() const {
+        std::ostringstream ss;
+        ss.fill('0');
+        ss << std::hex;
+        for (auto i = 0u; i < used; ++i) {
+            ss.width(2);
+            ss << static_cast<unsigned int>(data[i]);
+        }
+        return std::move(ss.str());
+    }
     void enter(ASMBufOffset offset) {
         const void *address = static_cast<void *>(data + offset);
         enter_buf(address);
