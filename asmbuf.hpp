@@ -6,6 +6,9 @@
 #include <sys/mman.h>
 
 const int PAGE_SIZE = 4096;
+using ASMBufOffset = size_t;
+
+void enter_buf(const void *addr);
 
 class ASMBuf {
     size_t used;
@@ -31,7 +34,6 @@ class ASMBuf {
             data = nullptr;
         }
     }
-    size_t length() const noexcept { return used; }
     void grow() {
         // create new mapping
         auto old_data = data;
@@ -48,7 +50,6 @@ class ASMBuf {
         buf_len *= 2;
         set_executable(is_exec);
     }
-    void *get_offset(size_t off) const { return static_cast<void *>(data + off); }
     void set_executable(bool executable) {
         if (data == nullptr)
             return;
@@ -96,7 +97,7 @@ class ASMBuf {
             data[used++] = byte;
         }
     }
-    template <typename T> void patch_val(size_t pos, T val) {
+    template <typename T> void patch_val(ASMBufOffset pos, T val) {
         size_t old_used = used;
         used = pos;
         write_val(val);
@@ -110,7 +111,9 @@ class ASMBuf {
         }
         std::cout << '\n';
     }
-    size_t current_offset() const { return used; }
+    ASMBufOffset current_offset() const { return used; }
+    void enter(ASMBufOffset offset) {
+        const void *address = static_cast<void *>(data + offset);
+        enter_buf(address);
+    }
 };
-
-void enter_buf(void *addr);
