@@ -23,7 +23,7 @@ void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem) {
             }
             loopPositions[ins.a_].first = i;
             break;
-        case IROpCode::INS_END:
+        case IROpCode::INS_END_LOOP:
             if (ins.a_ >= (ssize_t)loopPositions.size()) {
                 loopPositions.resize(ins.a_ + 1);
             }
@@ -60,7 +60,7 @@ void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem) {
                 i = loopPositions[ins.a_].second;
             }
             break;
-        case IROpCode::INS_END:
+        case IROpCode::INS_END_LOOP:
             i = loopPositions[ins.a_].first - 1;
             break;
         default:

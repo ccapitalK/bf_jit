@@ -33,7 +33,7 @@ class Parser {
                 loopStack_.push(loopCount_);
                 ++loopCount_;
                 break;
-            case IROpCode::INS_END:
+            case IROpCode::INS_END_LOOP:
                 if (loopStack_.size() == 0) {
                     throw JITError("Unexpected ]");
                 }
@@ -88,7 +88,7 @@ class Parser {
         std::unordered_map<int, int> relativeAdds;
         auto currOffset = 0;
 #if 0
-        if (outStream_[start].code_ != IROpCode::INS_LOOP || outStream_[end-1].code_ != IROpCode::INS_END) {
+        if (outStream_[start].code_ != IROpCode::INS_LOOP || outStream_[end-1].code_ != IROpCode::INS_END_LOOP) {
             throw JITError("invalid loop area");
         }
 #endif
@@ -148,7 +148,7 @@ class Parser {
                 currOffset = 0;
                 origModBy = 0;
                 break;
-            case IROpCode::INS_END:
+            case IROpCode::INS_END_LOOP:
                 if (loopStart.has_value() && origModBy == -1 && currOffset == 0) {
                     sawChange = true;
                     rewriteMultLoop(*loopStart, i + 1);

@@ -12,7 +12,7 @@ enum class IROpCode {
     INS_IN,     // call mgetc()
     INS_OUT,    // call mputc()
     INS_LOOP,   // Start of loop
-    INS_END,    // End of loop
+    INS_END_LOOP,    // End of loop
     INS_INVALID // Not a valid instruction
 };
 

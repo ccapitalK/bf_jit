@@ -43,8 +43,8 @@ ASMBufOffset CodeGenerator::compile(const std::vector<Instruction> &prog) {
         case IROpCode::INS_LOOP:
             generateInsLoop(ins.a_);
             break;
-        case IROpCode::INS_END:
-            generateInsEnd(ins.a_);
+        case IROpCode::INS_END_LOOP:
+            generateInsEndLoop(ins.a_);
             break;
         default:
             throw JITError("ICE: Unhandled instruction");
@@ -141,7 +141,7 @@ void CodeGenerator::generateInsAdp(int step) {
     }
 }
 
-void CodeGenerator::generateInsEnd(int loopNumber) {
+void CodeGenerator::generateInsEndLoop(int loopNumber) {
     const auto loopInfo = loopStarts_[loopNumber];
     const uintptr_t loop_start = loopInfo.first;
     const uintptr_t patch_loc = loopInfo.second;

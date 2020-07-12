@@ -20,7 +20,7 @@ class CodeGenerator {
     void generatePrelude();
     void generateInsAdd(unsigned char step);
     void generateInsAdp(int step);
-    void generateInsEnd(int loopNumber);
+    void generateInsEndLoop(int loopNumber);
     void generateInsIn();
     void generateInsLoop(int loopNumber);
     void generateInsMul(int offset, char multFactor);

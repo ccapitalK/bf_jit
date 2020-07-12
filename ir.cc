@@ -17,7 +17,7 @@ std::istream &operator>>(std::istream &is, Instruction &ins) {
         ins.code_ = IROpCode::INS_LOOP;
         break;
     case ']':
-        ins.code_ = IROpCode::INS_END;
+        ins.code_ = IROpCode::INS_END_LOOP;
         break;
     case '+':
         ins.code_ = IROpCode::INS_ADD;
@@ -63,8 +63,8 @@ std::ostream &operator<<(std::ostream &os, const Instruction &ins) {
     case IROpCode::INS_LOOP:
         op = "INS_LOOP";
         break;
-    case IROpCode::INS_END:
-        op = "INS_END";
+    case IROpCode::INS_END_LOOP:
+        op = "INS_END_LOOP";
         break;
     case IROpCode::INS_INVALID:
         op = "INS_INVALID";
