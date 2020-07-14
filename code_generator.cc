@@ -1,6 +1,8 @@
 #include <iostream>
 #include <optional>
 #include <stack>
+#include <tuple>
+#include <vector>
 
 #include "code_generator.hpp"
 #include "runtime.hpp"
@@ -16,11 +18,16 @@
 // r15 is (BFMEM_LENGTH-1) if IS_POW_2_MEM_LENGTH, else it is BFMEM_LENGTH
 
 ASMBufOffset CodeGenerator::compile(const std::vector<Instruction> &prog) {
+    std::vector<std::pair<ASMBufOffset, Instruction>> symbolMap;
     buf_.set_executable(false);
     const auto startOffset = buf_.current_offset();
+    symbolMap.emplace_back(startOffset, Instruction{});
     generatePrelude();
     for (auto ins : prog) {
         // std::cout << "Instruction: " << ins << '\n';
+        if (genPerfMap_) {
+            symbolMap.emplace_back(buf_.current_offset(), ins);
+        }
         switch (ins.code_) {
         case IROpCode::INS_ADD:
             generateInsAdd(ins.a_);
@@ -50,7 +57,27 @@ ASMBufOffset CodeGenerator::compile(const std::vector<Instruction> &prog) {
             throw JITError("ICE: Unhandled instruction");
         }
     }
+    symbolMap.emplace_back(buf_.current_offset(), Instruction{});
     generateEpilogue();
+    symbolMap.emplace_back(buf_.current_offset(), Instruction{});
+    if (genPerfMap_) {
+        // FIXME: make this work across multiple calls to compile()
+        for (auto i = 0u; i + 1 < symbolMap.size(); ++i) {
+            const ASMBufOffset start = symbolMap[i].first;
+            const ASMBufOffset end = symbolMap[i+1].first;
+            const size_t size = end - start;
+            perfSymbolMap_
+                << std::hex << buf_.address_at_offset(start) << ' '
+                << size << ' ' << std::dec;
+            if (i == 0) {
+                perfSymbolMap_ << "jit_prelude\n";
+            } else if (i + 2 == symbolMap.size()) {
+                perfSymbolMap_ << "jit_epilogue\n";
+            } else {
+                perfSymbolMap_ << "JIT OP: #" << i << ' ' << symbolMap[i].second << '\n';
+            }
+        }
+    }
     return startOffset;
 }
 

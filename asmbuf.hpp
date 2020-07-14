@@ -2,8 +2,8 @@
 #include "error.hpp"
 #include <cstring>
 #include <iostream>
-#include <string_view>
 #include <sstream>
+#include <string_view>
 #include <sys/mman.h>
 
 const int PAGE_SIZE = 4096;
@@ -95,6 +95,7 @@ class ASMBuf {
         used = old_used;
     }
     ASMBufOffset current_offset() const { return used; }
+    uintptr_t address_at_offset(ASMBufOffset offset) const { return (uintptr_t)(data + offset); }
     std::string instructionHexDump() const {
         std::ostringstream ss;
         ss.fill('0');

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <fstream>
 #include <unordered_map>
+#include <string>
+#include <unistd.h>
 #include <vector>
 
 #include "asmbuf.hpp"
@@ -34,9 +37,18 @@ class CodeGenerator {
     // generator default to unsigned, and would require a lot of casting
     const ssize_t BFMEM_LENGTH{(ssize_t)bfMem_.size()};
     const bool IS_POW_2_MEM_LENGTH{is_pow_2(BFMEM_LENGTH)};
+    const bool genPerfMap_{false};
+    std::ofstream perfSymbolMap_;
 
   public:
-    CodeGenerator(std::vector<char> &bfMem) : bfMem_{bfMem} {}
+    CodeGenerator(std::vector<char> &bfMem) : bfMem_{bfMem} {
+        if (genPerfMap_) {
+            size_t pid = getpid();
+            std::stringstream ss;
+            ss << "/tmp/perf-" << pid << ".map";
+            perfSymbolMap_.open(ss.str());
+        }
+    }
     ASMBufOffset compile(const std::vector<Instruction> &prog);
     void enter(ASMBufOffset);
     std::string instructionHexDump() const;
