@@ -39,9 +39,9 @@ std::istream &operator>>(std::istream &is, Instruction &ins) {
     return is;
 }
 
-std::ostream &operator<<(std::ostream &os, const Instruction &ins) {
+std::ostream &operator<<(std::ostream &os, IROpCode code) {
     const char *op = nullptr;
-    switch (ins.code_) {
+    switch (code) {
     case IROpCode::INS_ADD:
         op = "INS_ADD";
         break;
@@ -70,5 +70,9 @@ std::ostream &operator<<(std::ostream &os, const Instruction &ins) {
         op = "INS_INVALID";
         break;
     }
-    return os << op << ' ' << ins.a_ << ' ' << ins.b_ << ' ' << ins.c_;
+    return os << op;
+}
+
+std::ostream &operator<<(std::ostream &os, const Instruction &ins) {
+    return os << ins.code_ << ' ' << ins.a_ << ' ' << ins.b_ << ' ' << ins.c_;
 }

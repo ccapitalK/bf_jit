@@ -16,6 +16,8 @@ enum class IROpCode {
     INS_INVALID // Not a valid instruction
 };
 
+std::ostream &operator<<(std::ostream &os, IROpCode code);
+
 struct Instruction {
     IROpCode code_{};
     int a_{};
