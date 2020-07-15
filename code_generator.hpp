@@ -1,9 +1,9 @@
 #pragma once
 
 #include <fstream>
-#include <unordered_map>
 #include <string>
 #include <unistd.h>
+#include <unordered_map>
 #include <vector>
 
 #include "asmbuf.hpp"
@@ -16,6 +16,16 @@ template <typename T> bool is_pow_2(T v) {
         nonZeroBits += v & 1;
     }
     return nonZeroBits == 1;
+}
+template <typename T> size_t log_2(T v) {
+    if (v == 0)
+        return 0;
+    size_t seenBits = 0;
+    while ((v & 1) == 0) {
+        ++seenBits;
+        v >>= 1;
+    }
+    return seenBits;
 }
 
 class CodeGenerator {

@@ -239,53 +239,64 @@ void CodeGenerator::generateInsMul(int offset, char multFactor) {
     // map ins.a_ into [0, BFMEM_LENGTH), needed because of C++'s % weirdness with negative numbers
     const size_t destOffset = ((offset % BFMEM_LENGTH) + BFMEM_LENGTH) % BFMEM_LENGTH;
     /// Strategy:
-    /// load offset of remote into rax
+    /// load offset of remote into rdx
     buf_.write_bytes({
-    // mov %eax, %r11d
-        0x44, 0x89, 0xd8,
-    // add %eax, $destOffset
-        0x05
+    // lea %edx, [r11d+$destOffset]
+        0x67, 0x41, 0x8d, 0x93
     });
     buf_.write_val((uint32_t)destOffset);
     if (IS_POW_2_MEM_LENGTH) {
         buf_.write_bytes({
-        // and %eax, %r15d
-            0x44, 0x21, 0xf8
+        // and %edx, %r15d
+            0x44, 0x21, 0xfa
         });
     } else {
-        /// eax -= r15d * (eax >= r15d);
+        /// edx -= r15d * (edx >= r15d);
         /// This works because at this point, we know that 0 <= r11d < 2*r15d - 1
         buf_.write_bytes({
-        // mov %edx, %edx
-            0x31, 0xd2,
-        // cmp %eax, %r15d
-            0x44, 0x39, 0xf8,
-        // cmovge %r15d, %edx
-            0x41, 0x0f, 0x4d, 0xd7,
-        // sub %eax, %edx
-            0x29, 0xd0
+        // xor %eax, %eax
+            0x31, 0xc0,
+        // cmp %edx, %r15d
+            0x44, 0x39, 0xfa,
+        // cmovge %eax, %r15d
+            0x41, 0x0f, 0x4d, 0xc7,
+        // sub %edx, %eax
+            0x29, 0xc2
+        });
+    }
+    if (multFactor == 1) {
+        buf_.write_bytes({
+        /// load current cell into al
+        // mov %al, [r10+r11]
+            0x43, 0x8a, 0x04, 0x1a,
+        });
+    } else if (multFactor == -1) {
+        buf_.write_bytes({
+        /// load current cell into al, then negate it
+        // mov %al, [r10+r11]
+            0x43, 0x8a, 0x04, 0x1a,
+        // neg %al
+            0xf6, 0xd8
+        });
+    } else {
+        buf_.write_bytes({
+        /// load current cell into r12
+        // mov %r12b, [r10+r11]
+            0x47, 0x8a, 0x24, 0x1a,
+        /// mult r12 by multFactor, store in al
+        // mov %al, multFactor
+            0xb0, (unsigned char)multFactor,
+        // mul r12b
+            0x41, 0xf6, 0xe4
         });
     }
     buf_.write_bytes({
-    // mov %rdx, %rax
-        0x48, 0x89, 0xc2,
-    /// load current cell into r12
-    // mov %r12b, [r10+r11]
-        0x47, 0x8a, 0x24, 0x1a,
-    /// mult r12 by multFactor, store in al
-    // mov %al, multFactor
-        0xb0, (unsigned char)multFactor,
-    // mul r12b
-        0x41, 0xf6, 0xe4,
-    /// load value at remote
-    // mov %r12b, [r10+rdx]
-        0x45, 0x8a, 0x24, 0x12,
-    /// add together
-    // add %al, %r12b
-        0x44, 0x00, 0xe0,
+    /// add value from remote
+    // add %al, [r10+rdx]
+        0x41, 0x02, 0x04, 0x12,
     /// store at remote
     // mov [r10+rdx], %al
-        0x41, 0x88, 0x04, 0x12,
+        0x41, 0x88, 0x04, 0x12
     });
 }
 
@@ -314,10 +325,8 @@ void CodeGenerator::generateInsOut() {
 
 void CodeGenerator::generateInsZero() {
     buf_.write_bytes({
-    // xor %r12, %r12
-        0x4d, 0x31, 0xe4,
-    // mov [r10+r11], %r12b
-        0x47, 0x88, 0x24, 0x1a
+    // movb [r10+r11], 0
+        0x43, 0xc6, 0x04, 0x1a, 0x00
     });
 }
 
