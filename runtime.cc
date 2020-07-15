@@ -6,8 +6,7 @@
 unsigned char mgetc() {
     int c = getchar();
     if (c == EOF) {
-        std::cerr << "\nError: Unexpected end of input" << std::endl;
-        exit(1);
+        c = 0;
     }
     return c;
 }
