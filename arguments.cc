@@ -11,6 +11,7 @@ Arguments::Arguments(int argc, char *argv[]) {
         .operator()("m,mem-size", "Number of memory cells", cxxopts::value<size_t>()->default_value("32768"))
         .operator()("file-names", "BF source file names", cxxopts::value<std::vector<std::string>>())
         .operator()("d,dump-code", "Dump the generated machine code")
+        .operator()("dump-mem", "Dump the first 32 cells of memory after termination")
         .operator()("e,eof-behaviour", eofBehaviourOptionDescription, eofBehavioursParseType)
         .operator()("g,gen-syms", "Generate jit symbol maps for debugging purposes")
         .operator()("h,help", "Print help")
@@ -30,6 +31,7 @@ Arguments::Arguments(int argc, char *argv[]) {
         verbose = result.count("verbose");
         genSyms = result.count("gen-syms");
         dumpCode = result.count("dump-code");
+        dumpMem = result.count("dump-mem");
         noFlush = result.count("no-flush");
         useInterpreter = result.count("use-interpreter");
         bfMemLength = result["mem-size"].as<size_t>();

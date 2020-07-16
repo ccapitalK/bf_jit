@@ -68,6 +68,13 @@ void run(const Arguments &arguments) {
             std::cout << "Executed in " << time() << " seconds\n";
         }
     }
+    if (arguments.dumpMem) {
+        std::cout << "Mem: ";
+        for (auto i = 0u; i < std::min((size_t)32, bfMem.size()); ++i) {
+            std::cout << (int)bfMem[i] << ' ';
+        }
+        std::cout << '\n';
+    }
 }
 
 int main(int argc, char *argv[]) {

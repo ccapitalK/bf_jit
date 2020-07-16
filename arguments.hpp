@@ -11,6 +11,7 @@ struct Arguments {
     std::vector<std::string> fileNames;
     bool verbose{false};
     bool dumpCode{false};
+    bool dumpMem{false};
     bool genSyms{false};
     bool useInterpreter{false};
     bool noFlush{false};
