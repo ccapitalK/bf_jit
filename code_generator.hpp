@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "arguments.hpp"
 #include "asmbuf.hpp"
 #include "error.hpp"
 #include "ir.hpp"
@@ -51,7 +52,7 @@ class CodeGenerator {
     std::ofstream perfSymbolMap_;
 
   public:
-    CodeGenerator(std::vector<char> &bfMem, bool genPerfMap) : bfMem_{bfMem}, genPerfMap_{genPerfMap} {
+    CodeGenerator(std::vector<char> &bfMem, const Arguments &args) : bfMem_{bfMem}, genPerfMap_{args.genSyms} {
         if (genPerfMap_) {
             size_t pid = getpid();
             std::stringstream ss;

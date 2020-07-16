@@ -20,7 +20,8 @@ $ ./bf program.bf
 
 # Roadmap
 
-- Add cxxopts dependency, configure code generation and runtime environment based arguments
 - Add support for 16bit and 32bit cells
 - Add configurable buffer flushes after every print
+- Improve constant folding and const propagation
+- Improve const analysis
 

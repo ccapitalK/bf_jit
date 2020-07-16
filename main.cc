@@ -3,8 +3,7 @@
 #include <iostream>
 #include <stack>
 
-#include <cxxopts.hpp>
-
+#include "arguments.hpp"
 #include "asmbuf.hpp"
 #include "code_generator.hpp"
 #include "error.hpp"
@@ -83,49 +82,6 @@ double time() {
 constexpr size_t RDBUF_SIZE = 256 * 1024;
 static char rdbuf[RDBUF_SIZE];
 
-struct Arguments {
-    size_t bfMemLength;
-    std::vector<std::string> fileNames;
-    bool verbose{false};
-    bool dumpCode{false};
-    bool genSyms{false};
-    Arguments(int argc, char *argv[]) {
-        cxxopts::Options options("bf_jit", "JIT-compiling interpeter for brainfuck");
-        options.add_options()("m,mem-size", "Number of memory cells", cxxopts::value<size_t>()->default_value("32768"))(
-            "file-names", "BF source file names",
-            cxxopts::value<std::vector<std::string>>())("d,dump-code", "Dump the generated machine code")(
-            "g,gen-syms", "Generate jit symbol maps for debugging purposes")("h,help", "Print help")(
-            "v,verbose", "Print more information");
-        options.positional_help("[input files]").show_positional_help();
-        options.parse_positional({"file-names"});
-        try {
-            auto result = options.parse(argc, argv);
-            if (result.count("help")) {
-                std::cout << options.help() << '\n';
-                exit(0);
-            }
-            if (result.count("verbose")) {
-                verbose = true;
-            }
-            if (result.count("gen-syms")) {
-                genSyms = true;
-            }
-            if (result.count("dump-code")) {
-                dumpCode = true;
-            }
-            bfMemLength = result["mem-size"].as<size_t>();
-            if (!result.count("file-names")) {
-                throw cxxopts::OptionException("No source files specified");
-            }
-            fileNames = result["file-names"].as<std::vector<std::string>>();
-        } catch (cxxopts::OptionException &e) {
-            std::cout << options.help() << '\n';
-            std::cout << "Failed to parse args: " << e.what() << '\n';
-            exit(1);
-        }
-    }
-};
-
 void run(const Arguments &arguments) {
     std::ifstream in;
     in.rdbuf()->pubsetbuf(rdbuf, RDBUF_SIZE);
@@ -141,7 +97,7 @@ void run(const Arguments &arguments) {
     }
     std::vector<char> bfMem(arguments.bfMemLength, 0);
     auto prog = parser.compile();
-    CodeGenerator codeGenerator(bfMem, arguments.genSyms);
+    CodeGenerator codeGenerator(bfMem, arguments);
     auto offset = codeGenerator.compile(prog);
     if (arguments.verbose) {
         std::cout << "Compiled in " << time() << " seconds\n";
