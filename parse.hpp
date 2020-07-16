@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "arguments.hpp"
 #include "asmbuf.hpp"
 #include "error.hpp"
 #include "ir.hpp"
@@ -15,8 +16,10 @@ class Parser {
     std::stack<int> loopStack_;
     size_t loopCount_{};
     bool compiled_{false};
+    bool verbose_;
 
   public:
+    Parser(const Arguments &args) : verbose_{args.verbose} {}
     void checkNotFinished() const {
         if (compiled_) {
             throw JITError("Parser used after compilation");
@@ -178,7 +181,9 @@ class Parser {
         while (optimize()) {
             ++numOptPasses;
         }
-        std::cout << "Optimized " << numOptPasses << " times\n";
+        if (verbose_) {
+            std::cout << "Optimized " << numOptPasses << " times\n";
+        }
         compiled_ = true;
         return std::move(outStream_);
     }

@@ -5,7 +5,7 @@
 #include "ir.hpp"
 #include "runtime.hpp"
 
-void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, Arguments& args) {
+void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, const Arguments &) {
     const ssize_t BFMEM_LENGTH = bfMem.size();
     size_t dp{};
 

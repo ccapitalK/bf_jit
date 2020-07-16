@@ -5,4 +5,4 @@
 #include "arguments.hpp"
 #include "ir.hpp"
 
-void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, Arguments& args);
+void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, const Arguments &args);

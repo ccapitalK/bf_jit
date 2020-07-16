@@ -9,6 +9,7 @@ Arguments::Arguments(int argc, char *argv[]) {
         .operator()("file-names", "BF source file names", cxxopts::value<std::vector<std::string>>())("d,dump-code", "Dump the generated machine code")
         .operator()("g,gen-syms", "Generate jit symbol maps for debugging purposes")
         .operator()("h,help", "Print help")
+        .operator()("use-interpreter", "Don't jit the IR, just interpret it")
         .operator()("v,verbose", "Print more information");
     options.positional_help("[input files]").show_positional_help();
     options.parse_positional({"file-names"});
@@ -18,15 +19,10 @@ Arguments::Arguments(int argc, char *argv[]) {
             std::cout << options.help() << '\n';
             exit(0);
         }
-        if (result.count("verbose")) {
-            verbose = true;
-        }
-        if (result.count("gen-syms")) {
-            genSyms = true;
-        }
-        if (result.count("dump-code")) {
-            dumpCode = true;
-        }
+        verbose = result.count("verbose");
+        genSyms = result.count("gen-syms");
+        dumpCode = result.count("dump-code");
+        useInterpreter = result.count("use-interpreter");
         bfMemLength = result["mem-size"].as<size_t>();
         if (!result.count("file-names")) {
             throw cxxopts::OptionException("No source files specified");

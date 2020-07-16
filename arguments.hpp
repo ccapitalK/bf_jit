@@ -9,5 +9,6 @@ struct Arguments {
     bool verbose{false};
     bool dumpCode{false};
     bool genSyms{false};
+    bool useInterpreter{false};
     Arguments(int argc, char *argv[]);
 };
