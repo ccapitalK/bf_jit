@@ -10,6 +10,7 @@
 #include "asmbuf.hpp"
 #include "error.hpp"
 #include "ir.hpp"
+#include "runtime.hpp"
 
 template <typename T> bool is_pow_2(T v) {
     size_t nonZeroBits = 0;
@@ -44,6 +45,9 @@ class CodeGenerator {
     ASMBuf buf_{4};
     std::vector<char> &bfMem_;
     std::unordered_map<size_t, std::pair<uintptr_t, uintptr_t>> loopStarts_;
+    GetCharFunc getChar_;
+    PutCharFunc putChar_;
+    GetCharBehaviour getCharBehaviour;
     // If this isn't signed, calculations in the code
     // generator default to unsigned, and would require a lot of casting
     const ssize_t BFMEM_LENGTH{(ssize_t)bfMem_.size()};
@@ -52,7 +56,9 @@ class CodeGenerator {
     std::ofstream perfSymbolMap_;
 
   public:
-    CodeGenerator(std::vector<char> &bfMem, const Arguments &args) : bfMem_{bfMem}, genPerfMap_{args.genSyms} {
+    CodeGenerator(std::vector<char> &bfMem, const Arguments &args)
+        : bfMem_{bfMem}, getChar_{getCharFunc(args)},
+          putChar_{putCharFunc(args)}, getCharBehaviour{args.getCharBehaviour}, genPerfMap_{args.genSyms} {
         if (genPerfMap_) {
             size_t pid = getpid();
             std::stringstream ss;

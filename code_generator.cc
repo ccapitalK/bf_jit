@@ -106,13 +106,13 @@ void CodeGenerator::generatePrelude() {
     // mov %r13, putchar
         0x49, 0xbd
     });
-    buf_.write_val((uintptr_t)mputchar);
+    buf_.write_val((uintptr_t)putChar_);
 
     buf_.write_bytes({
     // mov %r14, mgetc
         0x49, 0xbe
     });
-    buf_.write_val((uintptr_t)mgetchar_0_on_eof);
+    buf_.write_val((uintptr_t)getChar_);
 
     buf_.write_bytes({
     // mov %r15, $BFMEM_LENGTH
@@ -194,6 +194,14 @@ void CodeGenerator::generateInsEndLoop(int loopNumber) {
 }
 
 void CodeGenerator::generateInsIn() {
+    if (getCharBehaviour == GetCharBehaviour::EOF_DOESNT_MODIFY) {
+        buf_.write_bytes({
+        // xor %edi, %edi
+            0x31, 0xff,
+        // mov %dil, [r10 + r11]
+            0x43, 0x8a, 0x3c, 0x1a
+        });
+    }
     buf_.write_bytes({
     // push %r10
         0x41, 0x52,

@@ -1,3 +1,4 @@
+#include <functional>
 #include <vector>
 
 #include "arguments.hpp"
@@ -5,9 +6,15 @@
 #include "ir.hpp"
 #include "runtime.hpp"
 
-void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, const Arguments &) {
+void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, const Arguments &args) {
     const ssize_t BFMEM_LENGTH = bfMem.size();
     size_t dp{};
+    auto mputchar = putCharFunc(args);
+    auto mGetCharFunc = getCharFunc(args);
+    std::function<int()> mgetchar = [&]() { return mGetCharFunc(0); };
+    if (args.getCharBehaviour == GetCharBehaviour::EOF_DOESNT_MODIFY) {
+        mgetchar = [&]() { return mGetCharFunc(bfMem[dp]); };
+    }
 
     std::vector<std::pair<uintptr_t, uintptr_t>> loopPositions;
     for (size_t i = 0; i < prog.size(); ++i) {
@@ -46,7 +53,7 @@ void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, c
             dp = (dp + ins.a_) % BFMEM_LENGTH;
             break;
         case IROpCode::INS_IN:
-            bfMem[dp] = mgetchar_0_on_eof();
+            bfMem[dp] = mgetchar();
             break;
         case IROpCode::INS_OUT:
             mputchar(bfMem[dp]);
