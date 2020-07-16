@@ -112,7 +112,7 @@ void CodeGenerator::generatePrelude() {
     // mov %r14, mgetc
         0x49, 0xbe
     });
-    buf_.write_val((uintptr_t)mgetc);
+    buf_.write_val((uintptr_t)mgetchar_0_on_eof);
 
     buf_.write_bytes({
     // mov %r15, $BFMEM_LENGTH
