@@ -17,10 +17,6 @@
 // r14 is the address of mgetc
 // r15 is (BFMEM_LENGTH-1) if IS_POW_2_MEM_LENGTH, else it is BFMEM_LENGTH
 
-void unimplemented() {
-    throw JITError("Unimplemented!");
-}
-
 template <typename CellType>
 ASMBufOffset CodeGenerator<CellType>::compile(const std::vector<Instruction> &prog) {
     std::vector<std::pair<ASMBufOffset, Instruction>> symbolMap;
@@ -127,20 +123,42 @@ void CodeGenerator<CellType>::generatePrelude() {
     buf_.write_val((size_t)BFMEM_LENGTH - (size_t)IS_POW_2_MEM_LENGTH);
 }
 
-template <>
-void CodeGenerator<char>::generateInsAdd(char step) {
-    buf_.write_bytes({
-    // mov %r12b, [r10+r11]
-        0x47, 0x8a, 0x24, 0x1a,
-    // add %r12b, $step
-        0x41, 0x80, 0xc4, (unsigned char) step,
-    // mov [r10+r11], %r12b
-        0x47, 0x88, 0x24, 0x1a
-    });
-}
 template <typename CellType>
-void CodeGenerator<CellType>::generateInsAdd(CellType) {
-    unimplemented();
+void CodeGenerator<CellType>::generateInsAdd(CellType step) {
+    if constexpr (std::is_same<CellType, char>::value) {
+        buf_.write_bytes({
+        // mov %r12b, [r10+r11]
+            0x47, 0x8a, 0x24, 0x1a,
+        // add %r12b, $step
+            0x41, 0x80, 0xc4, (unsigned char) step,
+        // mov [r10+r11], %r12b
+            0x47, 0x88, 0x24, 0x1a
+        });
+    } else if constexpr (std::is_same<CellType, short>::value) {
+        buf_.write_bytes({
+        // mov %r12w, [r10+r11*2]
+            0x66, 0x47, 0x8b, 0x24, 0x5a,
+        // add %r12w, $step
+            0x66, 0x41, 0x81, 0xc4
+        });
+        buf_.write_val(step);
+        buf_.write_bytes({
+        // mov [r10+r11*2], %r12w
+            0x66, 0x47, 0x89, 0x24, 0x5a
+        });
+    } else {
+        buf_.write_bytes({
+        // mov %r12d, [r10+r11*4]
+            0x47, 0x8b, 0x24, 0x9a,
+        // add %r12d, $step
+            0x41, 0x81, 0xc4
+        });
+        buf_.write_val(step);
+        buf_.write_bytes({
+        // mov [r10+r11], %r12b
+            0x47, 0x89, 0x24, 0x9a
+        });
+    }
 }
 
 template <typename CellType>
@@ -206,15 +224,30 @@ void CodeGenerator<CellType>::generateInsEndLoop(int loopNumber) {
     }
 }
 
-template <>
-void CodeGenerator<char>::generateInsIn() {
+
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsIn() {
     if (getCharBehaviour == GetCharBehaviour::EOF_DOESNT_MODIFY) {
         buf_.write_bytes({
         // xor %edi, %edi
             0x31, 0xff,
-        // mov %dil, [r10 + r11]
-            0x43, 0x8a, 0x3c, 0x1a
         });
+        if constexpr (std::is_same<CellType, char>::value) {
+            buf_.write_bytes({
+            // mov %dil, [r10+r11]
+                0x43, 0x8a, 0x3c, 0x1a,
+            });
+        } else if constexpr (std::is_same<CellType, short>::value) {
+            buf_.write_bytes({
+            // mov %dil, [r10+r11*2]
+                0x43, 0x8a, 0x3c, 0x5a,
+            });
+        } else {
+            buf_.write_bytes({
+            // mov %dil, [r10+r11*4]
+                0x43, 0x8a, 0x3c, 0x9a,
+            });
+        }
     }
     buf_.write_bytes({
     // push %r10
@@ -233,26 +266,51 @@ void CodeGenerator<char>::generateInsIn() {
         0x41, 0x5b,
     // pop %r10
         0x41, 0x5a,
-    // mov [r10+r11], %al
-        0x43, 0x88, 0x04, 0x1a
     });
+    if constexpr (std::is_same<CellType, char>::value) {
+        buf_.write_bytes({
+        // mov [r10+r11], %al
+            0x43, 0x88, 0x04, 0x1a
+        });
+    } else if constexpr (std::is_same<CellType, short>::value) {
+        buf_.write_bytes({
+        // mov [r10+r11*2], %ax
+            0x66, 0x43, 0x89, 0x04, 0x5a
+        });
+    } else {
+        buf_.write_bytes({
+        // mov [r10+r11*4], %eax
+            0x43, 0x89, 0x04, 0x9a
+        });
+    }
 }
 
 template <typename CellType>
-void CodeGenerator<CellType>::generateInsIn() {
-    unimplemented();
-}
-
-template <>
-void CodeGenerator<char>::generateInsLoop(int loopNumber) {
+void CodeGenerator<CellType>::generateInsLoop(int loopNumber) {
     // mark start of loop
     uintptr_t loop_start = buf_.current_offset();
-    buf_.write_bytes({
-    // mov %r12b, [r10+r11]
-        0x47, 0x8a, 0x24, 0x1a,
-    // test %r12b, %r12b
-        0x45, 0x84, 0xe4
-    });
+    if constexpr (std::is_same<CellType, char>::value) {
+        buf_.write_bytes({
+        // mov %r12b, [r10+r11]
+            0x47, 0x8a, 0x24, 0x1a,
+        // test %r12b, %r12b
+            0x45, 0x84, 0xe4
+        });
+    } else if constexpr (std::is_same<CellType, short>::value) {
+        buf_.write_bytes({
+        // mov %r12w, [r10+4*r11]
+            0x66, 0x47, 0x8b, 0x24, 0x5a,
+        // test %r12w, %r12w
+            0x66, 0x45, 0x85, 0xe4
+        });
+    } else {
+        buf_.write_bytes({
+        // mov %r12d, [r10+4*r11]
+            0x47, 0x8b, 0x24, 0x9a,
+        // test %r12d, %r12d
+            0x45, 0x85, 0xe4
+        });
+    }
     // store patch_loc
     uintptr_t patch_loc = buf_.current_offset();
     buf_.write_bytes({
@@ -264,25 +322,20 @@ void CodeGenerator<char>::generateInsLoop(int loopNumber) {
 }
 
 template <typename CellType>
-void CodeGenerator<CellType>::generateInsLoop(int) {
-    unimplemented();
-}
-
-template <>
-void CodeGenerator<char>::generateInsMul(int offset, char multFactor) {
+void CodeGenerator<CellType>::generateInsMul(int offset, CellType multFactor) {
     // map ins.a_ into [0, BFMEM_LENGTH), needed because of C++'s % weirdness with negative numbers
     const size_t destOffset = ((offset % BFMEM_LENGTH) + BFMEM_LENGTH) % BFMEM_LENGTH;
     /// Strategy:
-    /// load offset of remote into rdx
+    /// load index of remote into rcx
     buf_.write_bytes({
-    // lea %edx, [r11d+$destOffset]
-        0x67, 0x41, 0x8d, 0x93
+    // lea %ecx, [r11d+$destOffset]
+        0x67, 0x41, 0x8d, 0x8b
     });
     buf_.write_val((uint32_t)destOffset);
     if (IS_POW_2_MEM_LENGTH) {
         buf_.write_bytes({
-        // and %edx, %r15d
-            0x44, 0x21, 0xfa
+        // and %ecx, %r15d
+            0x44, 0x21, 0xf9
         });
     } else {
         /// edx -= r15d * (edx >= r15d);
@@ -290,57 +343,130 @@ void CodeGenerator<char>::generateInsMul(int offset, char multFactor) {
         buf_.write_bytes({
         // xor %eax, %eax
             0x31, 0xc0,
-        // cmp %edx, %r15d
-            0x44, 0x39, 0xfa,
+        // cmp %ecx, %r15d
+            0x44, 0x39, 0xf9,
         // cmovge %eax, %r15d
             0x41, 0x0f, 0x4d, 0xc7,
-        // sub %edx, %eax
-            0x29, 0xc2
+        // sub %ecx, %eax
+            0x29, 0xc1
         });
     }
-    if (multFactor == 1) {
+    if constexpr (std::is_same<CellType, char>::value) {
+        if (multFactor == 1) {
+            buf_.write_bytes({
+            /// load current cell into al
+            // mov %al, [r10+r11]
+                0x43, 0x8a, 0x04, 0x1a,
+            });
+        } else if (multFactor == -1) {
+            buf_.write_bytes({
+            /// load current cell into al, then negate it
+            // mov %al, [r10+r11]
+                0x43, 0x8a, 0x04, 0x1a,
+            // neg %al
+                0xf6, 0xd8
+            });
+        } else {
+            buf_.write_bytes({
+            /// load current cell into r12
+            // mov %r12b, [r10+r11]
+                0x47, 0x8a, 0x24, 0x1a,
+            /// mult r12 by multFactor, store in al
+            // mov %al, multFactor
+                0xb0, (unsigned char)multFactor,
+            // mul r12b
+                0x41, 0xf6, 0xe4
+            });
+        }
         buf_.write_bytes({
-        /// load current cell into al
-        // mov %al, [r10+r11]
-            0x43, 0x8a, 0x04, 0x1a,
+        /// add value from remote
+        // add %al, [r10+rcx]
+            0x41, 0x02, 0x04, 0x0a,
+        /// store at remote
+        // mov [r10+rcx], %al
+            0x41, 0x88, 0x04, 0x0a
         });
-    } else if (multFactor == -1) {
+    } else if constexpr (std::is_same<CellType, short>::value) {
+        if (multFactor == 1) {
+            buf_.write_bytes({
+            /// load current cell into ax
+            // mov %ax, [r10+r11*2]
+                0x66, 0x43, 0x8b, 0x04, 0x5a
+            });
+        } else if (multFactor == -1) {
+            buf_.write_bytes({
+            /// load current cell into ax, then negate it
+            // mov %ax, [r10+r11*2]
+                0x66, 0x43, 0x8b, 0x04, 0x5a,
+            // neg %ax
+                0x66, 0xf7, 0xd8
+            });
+        } else {
+            buf_.write_bytes({
+            /// load current cell into r12
+            // mov %r12w, [r10+r11*2]
+                0x66, 0x47, 0x8b, 0x24, 0x5a,
+            /// mult r12 by multFactor, store in ax
+            // mov %ax, multFactor
+                0x66, 0xb8,
+            });
+            buf_.write_val((CellType)multFactor);
+            buf_.write_bytes({
+            // mul r12w
+                0x66, 0x41, 0xf7, 0xe4
+            });
+        }
         buf_.write_bytes({
-        /// load current cell into al, then negate it
-        // mov %al, [r10+r11]
-            0x43, 0x8a, 0x04, 0x1a,
-        // neg %al
-            0xf6, 0xd8
+        /// add value from remote
+        // add %ax, [r10+rcx*2]
+            0x66, 0x41, 0x03, 0x04, 0x4a,
+        /// store at remote
+        // mov [r10+rcx*2], %ax
+            0x66, 0x41, 0x89, 0x04, 0x4a
         });
     } else {
+        if (multFactor == 1) {
+            buf_.write_bytes({
+            /// load current cell into al
+            // mov %eax, [r10+r11*4]
+                0x43, 0x8b, 0x04, 0x9a
+            });
+        } else if (multFactor == -1) {
+            buf_.write_bytes({
+            /// load current cell into al, then negate it
+            // mov %eax, [r10+r11*4]
+                0x43, 0x8b, 0x04, 0x9a,
+            // neg %eax
+                0xf7, 0xd8
+            });
+        } else {
+            buf_.write_bytes({
+            /// load current cell into r12
+            // mov %r12d, [r10+r11*4]
+                0x47, 0x8b, 0x24, 0x9a,
+            /// mult r12 by multFactor, store in al
+            // mov %eax, multFactor
+                0xb8
+            });
+            buf_.write_val((CellType)multFactor);
+            buf_.write_bytes({
+            // mul r12d
+                0x41, 0xf7, 0xe4
+            });
+        }
         buf_.write_bytes({
-        /// load current cell into r12
-        // mov %r12b, [r10+r11]
-            0x47, 0x8a, 0x24, 0x1a,
-        /// mult r12 by multFactor, store in al
-        // mov %al, multFactor
-            0xb0, (unsigned char)multFactor,
-        // mul r12b
-            0x41, 0xf6, 0xe4
+        /// add value from remote
+        // add %al, [r10+rdx]
+            0x41, 0x03, 0x04, 0x8a,
+        /// store at remote
+        // mov [r10+rdx], %al
+            0x41, 0x89, 0x04, 0x8a
         });
     }
-    buf_.write_bytes({
-    /// add value from remote
-    // add %al, [r10+rdx]
-        0x41, 0x02, 0x04, 0x12,
-    /// store at remote
-    // mov [r10+rdx], %al
-        0x41, 0x88, 0x04, 0x12
-    });
 }
 
 template <typename CellType>
-void CodeGenerator<CellType>::generateInsMul(int, CellType) {
-    unimplemented();
-}
-
-template <>
-void CodeGenerator<char>::generateInsOut() {
+void CodeGenerator<CellType>::generateInsOut() {
     buf_.write_bytes({
     // push %r10
         0x41, 0x52,
@@ -351,9 +477,25 @@ void CodeGenerator<char>::generateInsOut() {
     // mov %rbp, %rsp
         0x48, 0x89, 0xe5,
     // xor %edi, %edi
-        0x31, 0xff,
-    // mov %dil, [r10+r11]
-        0x43, 0x8a, 0x3c, 0x1a,
+        0x31, 0xff
+    });
+    if constexpr (std::is_same<CellType, char>::value) {
+        buf_.write_bytes({
+        // mov %dil, [r10+r11]
+            0x43, 0x8a, 0x3c, 0x1a,
+        });
+    } else if constexpr (std::is_same<CellType, short>::value) {
+        buf_.write_bytes({
+        // mov %dil, [r10+r11*2]
+            0x43, 0x8a, 0x3c, 0x5a,
+        });
+    } else {
+        buf_.write_bytes({
+        // mov %dil, [r10+r11*4]
+            0x43, 0x8a, 0x3c, 0x9a,
+        });
+    }
+    buf_.write_bytes({
     // call *%r13
         0x41, 0xff, 0xd5,
     // pop %rbp
@@ -366,21 +508,24 @@ void CodeGenerator<char>::generateInsOut() {
 }
 
 template <typename CellType>
-void CodeGenerator<CellType>::generateInsOut() {
-    unimplemented();
-}
-
-template <>
-void CodeGenerator<char>::generateInsConst(int constant) {
-    buf_.write_bytes({
-    // movb [r10+r11], $constant
-        0x43, 0xc6, 0x04, 0x1a, (unsigned char)constant
-    });
-}
-
-template <typename CellType>
-void CodeGenerator<CellType>::generateInsConst(int) {
-    unimplemented();
+void CodeGenerator<CellType>::generateInsConst(int constant) {
+    if constexpr (std::is_same<CellType, char>::value) {
+        buf_.write_bytes({
+        // movb [r10+r11], $constant
+            0x43, 0xc6, 0x04, 0x1a
+        });
+    } else if constexpr (std::is_same<CellType, short>::value) {
+        buf_.write_bytes({
+        // movw [r10+r11*2], $constant
+            0x66, 0x43, 0xc7, 0x04, 0x5a
+        });
+    } else {
+        buf_.write_bytes({
+        // movl [r10+r11*4], $constant
+            0x43, 0xc7, 0x04, 0x9a
+        });
+    }
+    buf_.write_val((CellType)constant);
 }
 
 template <typename CellType>
