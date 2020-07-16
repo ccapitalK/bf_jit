@@ -30,20 +30,21 @@ template <typename T> size_t log_2(T v) {
     return seenBits;
 }
 
+template <typename CellType>
 class CodeGenerator {
   private:
     void generatePrelude();
-    void generateInsAdd(unsigned char step);
+    void generateInsAdd(CellType step);
     void generateInsAdp(int step);
     void generateInsEndLoop(int loopNumber);
     void generateInsIn();
     void generateInsLoop(int loopNumber);
-    void generateInsMul(int offset, char multFactor);
+    void generateInsMul(int offset, CellType multFactor);
     void generateInsOut();
     void generateInsConst(int constant);
     void generateEpilogue();
     ASMBuf buf_{4};
-    std::vector<char> &bfMem_;
+    std::vector<CellType> &bfMem_;
     std::unordered_map<size_t, std::pair<uintptr_t, uintptr_t>> loopStarts_;
     GetCharFunc getChar_;
     PutCharFunc putChar_;
@@ -56,7 +57,7 @@ class CodeGenerator {
     std::ofstream perfSymbolMap_;
 
   public:
-    CodeGenerator(std::vector<char> &bfMem, const Arguments &args)
+    CodeGenerator(std::vector<CellType> &bfMem, const Arguments &args)
         : bfMem_{bfMem}, getChar_{getCharFunc(args)},
           putChar_{putCharFunc(args)}, getCharBehaviour{args.getCharBehaviour}, genPerfMap_{args.genSyms} {
         if (genPerfMap_) {

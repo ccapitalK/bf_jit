@@ -11,13 +11,18 @@
 //
 // Register model:
 // r10 = &bfMem[0]
-// r11 is the offset into bfMem_
+// r11 is the index into bfMem_
 // r12 is sometimes used to store the value of the current cell
 // r13 is the address of mputchar
 // r14 is the address of mgetc
 // r15 is (BFMEM_LENGTH-1) if IS_POW_2_MEM_LENGTH, else it is BFMEM_LENGTH
 
-ASMBufOffset CodeGenerator::compile(const std::vector<Instruction> &prog) {
+void unimplemented() {
+    throw JITError("Unimplemented!");
+}
+
+template <typename CellType>
+ASMBufOffset CodeGenerator<CellType>::compile(const std::vector<Instruction> &prog) {
     std::vector<std::pair<ASMBufOffset, Instruction>> symbolMap;
     buf_.set_executable(false);
     const auto startOffset = buf_.current_offset();
@@ -81,7 +86,8 @@ ASMBufOffset CodeGenerator::compile(const std::vector<Instruction> &prog) {
     return startOffset;
 }
 
-void CodeGenerator::generatePrelude() {
+template <typename CellType>
+void CodeGenerator<CellType>::generatePrelude() {
     /// Prelude to save callee-saved registers
     buf_.write_bytes({
     // push %r12
@@ -121,18 +127,24 @@ void CodeGenerator::generatePrelude() {
     buf_.write_val((size_t)BFMEM_LENGTH - (size_t)IS_POW_2_MEM_LENGTH);
 }
 
-void CodeGenerator::generateInsAdd(unsigned char step) {
+template <>
+void CodeGenerator<char>::generateInsAdd(char step) {
     buf_.write_bytes({
     // mov %r12b, [r10+r11]
         0x47, 0x8a, 0x24, 0x1a,
     // add %r12b, $step
-        0x41, 0x80, 0xc4, step,
+        0x41, 0x80, 0xc4, (unsigned char) step,
     // mov [r10+r11], %r12b
         0x47, 0x88, 0x24, 0x1a
     });
 }
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsAdd(CellType) {
+    unimplemented();
+}
 
-void CodeGenerator::generateInsAdp(int step) {
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsAdp(int step) {
     // map ins.a_ into [0, BFMEM_LENGTH), needed because of C++'s % weirdness with negative numbers
     const int adjustedStep = ((step % BFMEM_LENGTH) + BFMEM_LENGTH) % BFMEM_LENGTH;
     if (adjustedStep == 1) {
@@ -168,7 +180,8 @@ void CodeGenerator::generateInsAdp(int step) {
     }
 }
 
-void CodeGenerator::generateInsEndLoop(int loopNumber) {
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsEndLoop(int loopNumber) {
     const auto loopInfo = loopStarts_[loopNumber];
     const uintptr_t loop_start = loopInfo.first;
     const uintptr_t patch_loc = loopInfo.second;
@@ -193,7 +206,8 @@ void CodeGenerator::generateInsEndLoop(int loopNumber) {
     }
 }
 
-void CodeGenerator::generateInsIn() {
+template <>
+void CodeGenerator<char>::generateInsIn() {
     if (getCharBehaviour == GetCharBehaviour::EOF_DOESNT_MODIFY) {
         buf_.write_bytes({
         // xor %edi, %edi
@@ -224,7 +238,13 @@ void CodeGenerator::generateInsIn() {
     });
 }
 
-void CodeGenerator::generateInsLoop(int loopNumber) {
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsIn() {
+    unimplemented();
+}
+
+template <>
+void CodeGenerator<char>::generateInsLoop(int loopNumber) {
     // mark start of loop
     uintptr_t loop_start = buf_.current_offset();
     buf_.write_bytes({
@@ -243,7 +263,13 @@ void CodeGenerator::generateInsLoop(int loopNumber) {
     loopStarts_.emplace(loopNumber, std::make_pair(loop_start, patch_loc));
 }
 
-void CodeGenerator::generateInsMul(int offset, char multFactor) {
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsLoop(int) {
+    unimplemented();
+}
+
+template <>
+void CodeGenerator<char>::generateInsMul(int offset, char multFactor) {
     // map ins.a_ into [0, BFMEM_LENGTH), needed because of C++'s % weirdness with negative numbers
     const size_t destOffset = ((offset % BFMEM_LENGTH) + BFMEM_LENGTH) % BFMEM_LENGTH;
     /// Strategy:
@@ -308,7 +334,13 @@ void CodeGenerator::generateInsMul(int offset, char multFactor) {
     });
 }
 
-void CodeGenerator::generateInsOut() {
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsMul(int, CellType) {
+    unimplemented();
+}
+
+template <>
+void CodeGenerator<char>::generateInsOut() {
     buf_.write_bytes({
     // push %r10
         0x41, 0x52,
@@ -333,14 +365,26 @@ void CodeGenerator::generateInsOut() {
     });
 }
 
-void CodeGenerator::generateInsConst(int constant) {
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsOut() {
+    unimplemented();
+}
+
+template <>
+void CodeGenerator<char>::generateInsConst(int constant) {
     buf_.write_bytes({
     // movb [r10+r11], $constant
         0x43, 0xc6, 0x04, 0x1a, (unsigned char)constant
     });
 }
 
-void CodeGenerator::generateEpilogue() {
+template <typename CellType>
+void CodeGenerator<CellType>::generateInsConst(int) {
+    unimplemented();
+}
+
+template <typename CellType>
+void CodeGenerator<CellType>::generateEpilogue() {
     /// Restore callee-saved registers
     buf_.write_bytes({
     // pop %r15
@@ -357,15 +401,22 @@ void CodeGenerator::generateEpilogue() {
     });
 }
 
-void CodeGenerator::enter(ASMBufOffset offset) {
+template <typename CellType>
+void CodeGenerator<CellType>::enter(ASMBufOffset offset) {
     buf_.set_executable(true);
     buf_.enter(offset);
 }
 
-std::string CodeGenerator::instructionHexDump() const {
+template <typename CellType>
+std::string CodeGenerator<CellType>::instructionHexDump() const {
     return buf_.instructionHexDump();
 }
 
-size_t CodeGenerator::generatedLength() const {
+template <typename CellType>
+size_t CodeGenerator<CellType>::generatedLength() const {
     return buf_.current_offset();
 }
+
+template class CodeGenerator<char>;
+template class CodeGenerator<short>;
+template class CodeGenerator<int>;

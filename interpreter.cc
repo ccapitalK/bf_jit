@@ -6,7 +6,8 @@
 #include "ir.hpp"
 #include "runtime.hpp"
 
-void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, const Arguments &args) {
+template <typename CellType>
+void interpret(const std::vector<Instruction> &prog, std::vector<CellType> &bfMem, const Arguments &args) {
     const ssize_t BFMEM_LENGTH = bfMem.size();
     size_t dp{};
     auto mputchar = putCharFunc(args);
@@ -56,7 +57,7 @@ void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, c
             bfMem[dp] = mgetchar();
             break;
         case IROpCode::INS_OUT:
-            mputchar(bfMem[dp]);
+            mputchar(bfMem[dp] & 0xff);
             break;
         case IROpCode::INS_LOOP:
             if (bfMem[dp] == 0) {
@@ -71,3 +72,7 @@ void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, c
         }
     }
 }
+
+template void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, const Arguments &args);
+template void interpret(const std::vector<Instruction> &prog, std::vector<short> &bfMem, const Arguments &args);
+template void interpret(const std::vector<Instruction> &prog, std::vector<int> &bfMem, const Arguments &args);

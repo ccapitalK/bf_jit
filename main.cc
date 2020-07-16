@@ -23,6 +23,7 @@ double time() {
 constexpr size_t RDBUF_SIZE = 256 * 1024;
 static char rdbuf[RDBUF_SIZE];
 
+template <typename CellType>
 void run(const Arguments &arguments) {
     std::ifstream in;
     in.rdbuf()->pubsetbuf(rdbuf, RDBUF_SIZE);
@@ -36,7 +37,7 @@ void run(const Arguments &arguments) {
         }
         parser.feed(in);
     }
-    std::vector<char> bfMem(arguments.bfMemLength, 0);
+    std::vector<CellType> bfMem(arguments.bfMemLength, 0);
     auto prog = parser.compile();
     if (arguments.useInterpreter) {
         if (arguments.verbose) {
@@ -72,7 +73,17 @@ void run(const Arguments &arguments) {
 int main(int argc, char *argv[]) {
     Arguments arguments{argc, argv};
     try {
-        run(arguments);
+        switch(arguments.cellBitWidth) {
+        case 8:
+            run<char>(arguments);
+            break;
+        case 16:
+            run<short>(arguments);
+            break;
+        case 32:
+            run<int>(arguments);
+            break;
+        };
     } catch (JITError &e) {
         std::cout << "Fatal JITError caught: " << e.what() << '\n';
         return 1;

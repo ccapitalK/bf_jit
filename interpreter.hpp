@@ -5,4 +5,5 @@
 #include "arguments.hpp"
 #include "ir.hpp"
 
-void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem, const Arguments &args);
+template <typename CellType>
+void interpret(const std::vector<Instruction> &prog, std::vector<CellType> &bfMem, const Arguments &args);
