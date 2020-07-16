@@ -318,6 +318,8 @@ void CodeGenerator::generateInsOut() {
         0x55,
     // mov %rbp, %rsp
         0x48, 0x89, 0xe5,
+    // xor %edi, %edi
+        0x31, 0xff,
     // mov %dil, [r10+r11]
         0x43, 0x8a, 0x3c, 0x1a,
     // call *%r13
