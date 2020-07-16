@@ -5,15 +5,15 @@
 #include "error.hpp"
 
 enum class IROpCode {
-    INS_ADD,    // Add to current cell
-    INS_MUL,    // v[dp+a_] += v[dp] * b_
-    INS_ZERO,   // Set current cell to zero
-    INS_ADP,    // Add to data pointer
-    INS_IN,     // call mgetc()
-    INS_OUT,    // call mputc()
-    INS_LOOP,   // Start of loop
-    INS_END_LOOP,    // End of loop
-    INS_INVALID // Not a valid instruction
+    INS_ADD,      // Add to current cell
+    INS_MUL,      // v[dp+a_] += v[dp] * b_
+    INS_CONST,    // Set current cell to a_
+    INS_ADP,      // Add to data pointer
+    INS_IN,       // call mgetc()
+    INS_OUT,      // call mputc()
+    INS_LOOP,     // Start of loop
+    INS_END_LOOP, // End of loop
+    INS_INVALID   // Not a valid instruction
 };
 
 std::ostream &operator<<(std::ostream &os, IROpCode code);

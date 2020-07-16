@@ -38,8 +38,8 @@ ASMBufOffset CodeGenerator::compile(const std::vector<Instruction> &prog) {
         case IROpCode::INS_MUL:
             generateInsMul(ins.a_, ins.b_);
             break;
-        case IROpCode::INS_ZERO:
-            generateInsZero();
+        case IROpCode::INS_CONST:
+            generateInsConst(ins.a_);
             break;
         case IROpCode::INS_OUT:
             generateInsOut();
@@ -323,10 +323,10 @@ void CodeGenerator::generateInsOut() {
     });
 }
 
-void CodeGenerator::generateInsZero() {
+void CodeGenerator::generateInsConst(int constant) {
     buf_.write_bytes({
-    // movb [r10+r11], 0
-        0x43, 0xc6, 0x04, 0x1a, 0x00
+    // movb [r10+r11], $constant
+        0x43, 0xc6, 0x04, 0x1a, (unsigned char)constant
     });
 }
 

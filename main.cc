@@ -43,8 +43,8 @@ void interpret(const std::vector<Instruction> &prog, std::vector<char> &bfMem) {
             auto remote = (dp + ins.a_) % BFMEM_LENGTH;
             bfMem[remote] += ins.b_ * bfMem[dp];
         } break;
-        case IROpCode::INS_ZERO:
-            bfMem[dp] = 0;
+        case IROpCode::INS_CONST:
+            bfMem[dp] = ins.a_;
             break;
         case IROpCode::INS_ADP:
             dp = (dp + ins.a_) % BFMEM_LENGTH;

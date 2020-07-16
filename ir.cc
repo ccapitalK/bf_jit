@@ -48,8 +48,8 @@ std::ostream &operator<<(std::ostream &os, IROpCode code) {
     case IROpCode::INS_MUL:
         op = "INS_MUL";
         break;
-    case IROpCode::INS_ZERO:
-        op = "INS_ZERO";
+    case IROpCode::INS_CONST:
+        op = "INS_CONST";
         break;
     case IROpCode::INS_ADP:
         op = "INS_ADP";

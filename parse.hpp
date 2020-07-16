@@ -120,7 +120,7 @@ class Parser {
                 outStream_[writeIndex++] = Instruction{IROpCode::INS_MUL, x, v};
             }
         }
-        outStream_[writeIndex++] = Instruction{IROpCode::INS_ZERO};
+        outStream_[writeIndex++] = Instruction{IROpCode::INS_CONST, 0};
         while (writeIndex < end)
             outStream_[writeIndex++].code_ = IROpCode::INS_INVALID;
     }

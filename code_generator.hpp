@@ -38,7 +38,7 @@ class CodeGenerator {
     void generateInsLoop(int loopNumber);
     void generateInsMul(int offset, char multFactor);
     void generateInsOut();
-    void generateInsZero();
+    void generateInsConst(int constant);
     void generateEpilogue();
     ASMBuf buf_{4};
     std::vector<char> &bfMem_;
