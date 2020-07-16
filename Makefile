@@ -1,7 +1,7 @@
 CXX=g++
 CXXFLAGS=-std=c++17 -Wall -Wextra -Ilibs/cxxopts/include -O3
 LDFLAGS=
-OBJS=arguments.o asmbuf.o code_generator.o interpreter.o ir.o main.o runtime.o
+OBJS=src/arguments.o src/asmbuf.o src/code_generator.o src/interpreter.o src/ir.o src/main.o src/runtime.o
 
 .PHONY: clean
 
@@ -9,4 +9,4 @@ bf: ${OBJS}
 	${CXX} ${CXXFLAGS} ${LDFLAGS} $^ -o $@
 
 clean:
-	rm *.o bf
+	rm src/*.o bf
