@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-std=c++17 -Wall -Wextra -O3
+CXXFLAGS=-std=c++17 -Wall -Wextra -Ilibs/cxxopts/include -O3
 LDFLAGS=
 OBJS=asmbuf.o code_generator.o ir.o main.o runtime.o
 

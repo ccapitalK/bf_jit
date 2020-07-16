@@ -51,7 +51,7 @@ class CodeGenerator {
     std::ofstream perfSymbolMap_;
 
   public:
-    CodeGenerator(std::vector<char> &bfMem) : bfMem_{bfMem} {
+    CodeGenerator(std::vector<char> &bfMem, bool genPerfMap) : bfMem_{bfMem}, genPerfMap_{genPerfMap} {
         if (genPerfMap_) {
             size_t pid = getpid();
             std::stringstream ss;
