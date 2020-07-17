@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <iostream>
 #include <optional>
 #include <stack>
@@ -86,21 +87,20 @@ class Parser {
     // Pre: the code at [start...end) contains a loop (including []), that can be converted into mults
     //      i.e. balanced count of < and >, single - at root, only invalid/add/adp
     void rewriteMultLoop(size_t start, size_t end) {
-        // std::cout << "Making MUL at [" << start << ',' << end << ")\n";
-        // a map of relative offsets to the amount we change them by each loop iteration
+        // A map of relative offsets to the amount we change them by each loop iteration
         std::unordered_map<int, int> relativeAdds;
+        // The current offset from the original cell
         auto currOffset = 0;
-#if 0
-        if (outStream_[start].code_ != IROpCode::INS_LOOP || outStream_[end-1].code_ != IROpCode::INS_END_LOOP) {
-            throw JITError("invalid loop area");
-        }
-#endif
+        // The amount we change the origin cell by each loop iteration
+        auto originAdd = 0;
         for (auto i = start + 1; i < end - 1; ++i) {
             auto &ins = outStream_[i];
             switch (ins.code_) {
             case IROpCode::INS_ADD:
                 if (currOffset != 0) {
                     relativeAdds[currOffset] += ins.a_;
+                } else {
+                    originAdd += ins.a_;
                 }
                 break;
             case IROpCode::INS_ADP:
@@ -112,15 +112,12 @@ class Parser {
                 throw JITError("ICE: Unexpected instruction");
             }
         }
-#if 0
-        if (currOffset != 0) {
-            throw JITError("invalid loop area");
-        }
-#endif
+        assert(std::abs(originAdd) == 1);
+        const auto origMultFactor = -originAdd;
         auto writeIndex = start;
         for (auto [x, v] : relativeAdds) {
             if (v != 0) {
-                outStream_[writeIndex++] = Instruction{IROpCode::INS_MUL, x, v};
+                outStream_[writeIndex++] = Instruction{IROpCode::INS_MUL, x, v*origMultFactor};
             }
         }
         outStream_[writeIndex++] = Instruction{IROpCode::INS_CONST, 0};
@@ -152,7 +149,7 @@ class Parser {
                 origModBy = 0;
                 break;
             case IROpCode::INS_END_LOOP:
-                if (loopStart.has_value() && origModBy == -1 && currOffset == 0) {
+                if (loopStart.has_value() && std::abs(origModBy) == 1 && currOffset == 0) {
                     sawChange = true;
                     rewriteMultLoop(*loopStart, i + 1);
                 }
