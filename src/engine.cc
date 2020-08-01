@@ -31,6 +31,7 @@ template <typename CellType> void Engine<CellType>::run() {
             throw JITError("Failed to open file \"", fileName, "\"");
         }
         parser_.feed(in);
+        in.close();
     }
     auto prog = parser_.compile();
     optimizer_.optimize(prog);
