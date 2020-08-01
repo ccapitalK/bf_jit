@@ -8,7 +8,7 @@
 #include "code_generator.hpp"
 #include "error.hpp"
 #include "interpreter.hpp"
-#include "parse.hpp"
+#include "parser.hpp"
 #include "runtime.hpp"
 
 double time() {
@@ -23,8 +23,7 @@ double time() {
 constexpr size_t RDBUF_SIZE = 256 * 1024;
 static char rdbuf[RDBUF_SIZE];
 
-template <typename CellType>
-void run(const Arguments &arguments) {
+template <typename CellType> void run(const Arguments &arguments) {
     std::ifstream in;
     in.rdbuf()->pubsetbuf(rdbuf, RDBUF_SIZE);
 
@@ -80,7 +79,7 @@ void run(const Arguments &arguments) {
 int main(int argc, char *argv[]) {
     Arguments arguments{argc, argv};
     try {
-        switch(arguments.cellBitWidth) {
+        switch (arguments.cellBitWidth) {
         case 8:
             run<char>(arguments);
             break;
