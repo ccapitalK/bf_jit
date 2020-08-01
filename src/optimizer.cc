@@ -52,56 +52,20 @@ bool Optimizer::deadCodeEliminationPass() {
     return sawChange;
 }
 
-void Optimizer::rewriteMultLoop(size_t start, size_t end) {
-    // A map of relative offsets to the amount we change them by each loop iteration
+bool Optimizer::multPass() {
+    std::optional<size_t> loopStartPosition{};
     std::unordered_map<int, int> relativeAdds;
-    // The current offset from the original cell
-    auto currOffset = 0;
-    // The amount we change the origin cell by each loop iteration
-    auto originAdd = 0;
-    for (auto i = start + 1; i < end - 1; ++i) {
-        auto &ins = prog()[i];
-        switch (ins.code_) {
-        case IROpCode::INS_ADD:
-            if (currOffset != 0) {
-                relativeAdds[currOffset] += ins.a_;
-            } else {
-                originAdd += ins.a_;
-            }
-            break;
-        case IROpCode::INS_ADP:
-            currOffset += ins.a_;
-            break;
-        case IROpCode::INS_INVALID:
-            break;
-        default:
-            throw JITError("ICE: Unexpected instruction");
-        }
-    }
-    assert(std::abs(originAdd) == 1);
-    const auto origMultFactor = -originAdd;
-    auto writeIndex = start;
-    for (auto [x, v] : relativeAdds) {
-        if (v != 0) {
-            prog()[writeIndex++] = Instruction{IROpCode::INS_MUL, x, v * origMultFactor};
-        }
-    }
-    prog()[writeIndex++] = Instruction{IROpCode::INS_CONST, 0};
-    while (writeIndex < end)
-        prog()[writeIndex++].code_ = IROpCode::INS_INVALID;
-}
-
-bool Optimizer::makeMultPass() {
-    std::optional<size_t> loopStart{};
     ssize_t currOffset{};
-    ssize_t origModBy{};
+    int origModBy{};
     auto sawChange{false};
-    for (auto i = 0u; i < prog().size(); ++i) {
+    for (size_t i = 0u; i < prog().size(); ++i) {
         auto &ins = prog()[i];
         switch (ins.code_) {
         case IROpCode::INS_ADD:
             if (currOffset == 0) {
                 origModBy += ins.a_;
+            } else if (loopStartPosition.has_value()) {
+                relativeAdds[currOffset] += ins.a_;
             }
             break;
         case IROpCode::INS_ADP:
@@ -110,19 +74,30 @@ bool Optimizer::makeMultPass() {
         case IROpCode::INS_INVALID:
             break;
         case IROpCode::INS_LOOP:
-            loopStart = i;
+            loopStartPosition = i;
             currOffset = 0;
             origModBy = 0;
+            relativeAdds = {};
             break;
-        case IROpCode::INS_END_LOOP:
-            if (loopStart.has_value() && std::abs(origModBy) == 1 && currOffset == 0) {
+        case IROpCode::INS_END_LOOP: {
+            if (loopStartPosition.has_value() && std::abs(origModBy) == 1 && currOffset == 0) {
                 sawChange = true;
-                rewriteMultLoop(*loopStart, i + 1);
+                auto writeIndex = *loopStartPosition, end = i + 1;
+                for (auto [x, v] : relativeAdds) {
+                    if (v != 0) {
+                        prog()[writeIndex++] = Instruction{IROpCode::INS_MUL, x, -v * origModBy};
+                    }
+                }
+                prog()[writeIndex++] = Instruction{IROpCode::INS_CONST, 0};
+                for (; writeIndex < end; ++writeIndex) {
+                    prog()[writeIndex].code_ = IROpCode::INS_INVALID;
+                }
             }
-            loopStart = {};
+            loopStartPosition = {};
             break;
+        }
         default:
-            loopStart = {};
+            loopStartPosition = {};
         }
     }
     return sawChange;
@@ -133,6 +108,6 @@ bool Optimizer::optimizePass() {
     auto sawChange = false;
     sawChange = constPropagatePass() || sawChange;
     sawChange = deadCodeEliminationPass() || sawChange;
-    sawChange = makeMultPass() || sawChange;
+    sawChange = multPass() || sawChange;
     return sawChange;
 }
