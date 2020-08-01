@@ -34,6 +34,12 @@ template <typename CellType> void Engine<CellType>::run() {
     }
     auto prog = parser_.compile();
     optimizer_.optimize(prog);
+    if (arguments_.dumpCode) {
+        std::cout << "Code:\n";
+        for (auto ins: prog) {
+            std::cout << ins << '\n';
+        }
+    }
     if (arguments_.useInterpreter) {
         if (arguments_.verbose) {
             std::cout << "Compiled in " << time() << " seconds\n";
