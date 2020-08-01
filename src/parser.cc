@@ -18,12 +18,12 @@ void Parser::feed(std::istream &is) {
         Instruction ins;
         is >> ins;
         switch (ins.code_) {
-        case IROpCode::INS_LOOP:
+        case IROpCode::LOOP:
             ins.a_ = loopCount_;
             loopStack_.push(loopCount_);
             ++loopCount_;
             break;
-        case IROpCode::INS_END_LOOP:
+        case IROpCode::END_LOOP:
             if (loopStack_.size() == 0) {
                 throw JITError("Unexpected ]");
             }
@@ -33,7 +33,7 @@ void Parser::feed(std::istream &is) {
         default:
             break;
         }
-        if (ins.code_ != IROpCode::INS_INVALID) {
+        if (ins.code_ != IROpCode::INVALID) {
             outStream_.emplace_back(std::move(ins));
         }
     }

@@ -30,28 +30,28 @@ ASMBufOffset CodeGenerator<CellType>::compile(const std::vector<Instruction> &pr
             symbolMap.emplace_back(buf_.current_offset(), ins);
         }
         switch (ins.code_) {
-        case IROpCode::INS_ADD:
+        case IROpCode::ADD:
             generateInsAdd(ins.a_);
             break;
-        case IROpCode::INS_ADP:
+        case IROpCode::ADP:
             generateInsAdp(ins.a_);
             break;
-        case IROpCode::INS_MUL:
+        case IROpCode::MUL:
             generateInsMul(ins.a_, ins.b_);
             break;
-        case IROpCode::INS_CONST:
+        case IROpCode::CONST:
             generateInsConst(ins.a_);
             break;
-        case IROpCode::INS_OUT:
+        case IROpCode::OUT:
             generateInsOut();
             break;
-        case IROpCode::INS_IN:
+        case IROpCode::IN:
             generateInsIn();
             break;
-        case IROpCode::INS_LOOP:
+        case IROpCode::LOOP:
             generateInsLoop(ins.a_);
             break;
-        case IROpCode::INS_END_LOOP:
+        case IROpCode::END_LOOP:
             generateInsEndLoop(ins.a_);
             break;
         default:
