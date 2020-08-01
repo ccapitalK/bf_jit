@@ -4,6 +4,7 @@
 
 #include "arguments.hpp"
 #include "error.hpp"
+#include "optimizer.hpp"
 #include "parser.hpp"
 
 template <typename CellType> class Engine {
@@ -17,5 +18,6 @@ template <typename CellType> class Engine {
     std::vector<char> rdbuf_;
     const Arguments &arguments_;
     std::vector<CellType> bfMem_;
+    Optimizer optimizer_;
     Parser parser_{arguments_};
 };

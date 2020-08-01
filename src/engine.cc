@@ -5,10 +5,12 @@
 #include "code_generator.hpp"
 #include "engine.hpp"
 #include "interpreter.hpp"
+#include "optimizer.hpp"
+#include "parser.hpp"
 
 template <typename CellType>
 Engine<CellType>::Engine(const Arguments &arguments)
-    : rdbuf_(RDBUF_SIZE, 0), arguments_{arguments}, bfMem_(arguments_.bfMemLength, 0) {}
+    : rdbuf_(RDBUF_SIZE, 0), arguments_{arguments}, bfMem_(arguments_.bfMemLength, 0), optimizer_{arguments} {}
 
 static double time() {
     static std::clock_t startTime = std::clock();
@@ -31,6 +33,7 @@ template <typename CellType> void Engine<CellType>::run() {
         parser_.feed(in);
     }
     auto prog = parser_.compile();
+    optimizer_.optimize(prog);
     if (arguments_.useInterpreter) {
         if (arguments_.verbose) {
             std::cout << "Compiled in " << time() << " seconds\n";

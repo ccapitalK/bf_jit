@@ -1,10 +1,7 @@
 #pragma once
 
-#include <cassert>
 #include <iostream>
-#include <optional>
 #include <stack>
-#include <unordered_map>
 #include <vector>
 
 #include "arguments.hpp"
@@ -21,14 +18,6 @@ class Parser {
     std::vector<Instruction> compile();
 
   private:
-    bool constPropagatePass();
-    bool deadCodeEliminationPass();
-    // Pre: the code at [start...end) contains a loop (including []), that can be converted into mults
-    //      i.e. balanced count of < and >, single - or + at root, only invalid/add/adp instructions inside
-    void rewriteMultLoop(size_t start, size_t end);
-    bool makeMultPass();
-    bool optimize();
-
     std::vector<Instruction> outStream_;
     std::stack<int> loopStack_;
     size_t loopCount_{};
