@@ -28,7 +28,6 @@ struct Instruction {
     Instruction(IROpCode code, int a) : code_(code), a_(a), b_(0), c_(0) {}
     Instruction(IROpCode code, int a, int b) : code_(code), a_(a), b_(b), c_(0) {}
     Instruction(IROpCode code, int a, int b, int c) : code_(code), a_(a), b_(b), c_(c) {}
-    bool isFoldable() { return code_ == IROpCode::ADD || code_ == IROpCode::ADP; }
     friend std::istream &operator>>(std::istream &is, Instruction &ins);
     friend std::ostream &operator<<(std::ostream &os, const Instruction &ins);
 };

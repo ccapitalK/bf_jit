@@ -1,4 +1,5 @@
 #include <cassert>
+#include <map>
 #include <optional>
 #include <unordered_map>
 
@@ -20,19 +21,69 @@ void Optimizer::optimize(std::vector<Instruction> &program) {
 
 std::vector<Instruction> &Optimizer::prog() { return *progPtr_; }
 
+struct ConstFoldable {
+    int val{};
+    enum class Type : int {
+        Add,
+        Const,
+    } type{Type::Add};
+    Instruction genIns() const {
+        return {
+            type == Type::Add ? IROpCode::ADD : IROpCode::CONST,
+            val
+        };
+    }
+};
+
+// For each run of Add, Const, Adp, re-organize them
 bool Optimizer::constPropagatePass() {
     auto sawChange{false};
     if (prog().size() == 0) {
         return false;
     }
-    for (auto foldStart = prog().begin(), pos = foldStart + 1; pos != prog().end(); ++pos) {
-        if (pos->isFoldable() && foldStart->code_ == pos->code_) {
-            foldStart->a_ += pos->a_;
-            pos->code_ = IROpCode::INVALID;
-        } else {
-            foldStart = pos;
+    std::map<int, ConstFoldable> constants;
+    int offset{};
+    auto finalize = [&](size_t start, size_t end) {
+        int tapePosition{};
+        size_t codePosition{start};
+        if (offset != 0 && constants.count(0)) {
+            prog()[codePosition++] = constants[0].genIns();
+        }
+        for (auto [off, fold]: constants) {
+            if (off != 0 && off != offset) {
+                prog()[codePosition++] = {IROpCode::ADP, off - tapePosition};
+                prog()[codePosition++] = fold.genIns();
+                tapePosition = off;
+            }
+        }
+        if (tapePosition != offset) {
+            prog()[codePosition++] = {IROpCode::ADP, offset - tapePosition};
+        }
+        if (constants.count(offset)) {
+            prog()[codePosition++] = constants[offset].genIns();
+        }
+        for (; codePosition < end; ++codePosition) {
+            prog()[codePosition] = IROpCode::INVALID;
+        }
+    };
+    size_t foldStart = 0;
+    for (size_t pos = 0; pos != prog().size(); ++pos) {
+        auto &ins = prog()[pos];
+        switch (ins.code_) {
+        case IROpCode::ADD: constants[offset].val += ins.a_; break;
+        case IROpCode::ADP: offset += ins.a_; break;
+        case IROpCode::CONST: constants[offset] = {ins.a_, ConstFoldable::Type::Const}; break;
+        default:
+            if (offset != 0 || constants.size()) {
+                finalize(foldStart, pos);
+                offset = {};
+                constants = {};
+            }
+            foldStart = pos + 1;
+            break;
         }
     }
+    finalize(foldStart, prog().size());
     return sawChange;
 }
 
