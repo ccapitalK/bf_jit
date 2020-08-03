@@ -41,41 +41,42 @@ template <typename CellType> void Engine<CellType>::run() {
             std::cout << ins << '\n';
         }
     }
-    if (arguments_.useInterpreter) {
-        if (arguments_.verbose) {
-            std::cout << "Compiled in " << time() << " seconds\n";
-        }
-        time();
-        interpret(prog, bfMem_, arguments_);
-        if (arguments_.verbose) {
-            std::cout << '\n';
-            std::cout << "Executed in " << time() << " seconds\n";
-        }
-    } else {
-        CodeGenerator codeGenerator(bfMem_, arguments_);
-        auto offset = codeGenerator.compile(prog);
-        if (arguments_.verbose) {
-            std::cout << "Compiled in " << time() << " seconds\n";
-            std::cout << "Used " << codeGenerator.generatedLength() << " bytes\n";
-            std::cout << "Running with mem-size: " << arguments_.bfMemLength << " bytes\n";
-        }
-        if (arguments_.dumpCode) {
-            std::cout << "Instructions : " << codeGenerator.instructionHexDump() << '\n';
-        }
-
-        time();
-        codeGenerator.enter(offset);
-        if (arguments_.verbose) {
-            std::cout << '\n';
-            std::cout << "Executed in " << time() << " seconds\n";
-        }
+    if (arguments_.verbose) {
+        std::cout << "Compiled in " << time() << " seconds\n";
     }
-    if (arguments_.dumpMem) {
-        std::cout << "Mem: ";
-        for (auto i = 0u; i < std::min((size_t)32, bfMem_.size()); ++i) {
-            std::cout << (int)bfMem_[i] << ' ';
+    if (!arguments_.dryRun) {
+        if (arguments_.useInterpreter) {
+            time();
+            interpret(prog, bfMem_, arguments_);
+            if (arguments_.verbose) {
+                std::cout << '\n';
+                std::cout << "Executed in " << time() << " seconds\n";
+            }
+        } else {
+            CodeGenerator codeGenerator(bfMem_, arguments_);
+            auto offset = codeGenerator.compile(prog);
+            if (arguments_.verbose) {
+                std::cout << "Used " << codeGenerator.generatedLength() << " bytes\n";
+                std::cout << "Running with mem-size: " << arguments_.bfMemLength << " bytes\n";
+            }
+            if (arguments_.dumpCode) {
+                std::cout << "Instructions : " << codeGenerator.instructionHexDump() << '\n';
+            }
+
+            time();
+            codeGenerator.enter(offset);
+            if (arguments_.verbose) {
+                std::cout << '\n';
+                std::cout << "Executed in " << time() << " seconds\n";
+            }
         }
-        std::cout << '\n';
+        if (arguments_.dumpMem) {
+            std::cout << "Mem: ";
+            for (auto i = 0u; i < std::min((size_t)32, bfMem_.size()); ++i) {
+                std::cout << (int)bfMem_[i] << ' ';
+            }
+            std::cout << '\n';
+        }
     }
 }
 

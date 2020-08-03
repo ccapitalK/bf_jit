@@ -10,6 +10,7 @@ struct Arguments {
     size_t cellBitWidth;
     std::vector<std::string> fileNames;
     bool verbose{false};
+    bool dryRun{false};
     bool dumpCode{false};
     bool dumpMem{false};
     bool genSyms{false};
