@@ -1,15 +1,9 @@
 #include <fstream>
 #include <iostream>
-#include <stack>
 
 #include "arguments.hpp"
-#include "asmbuf.hpp"
-#include "code_generator.hpp"
 #include "engine.hpp"
 #include "error.hpp"
-#include "interpreter.hpp"
-#include "parser.hpp"
-#include "runtime.hpp"
 
 int main(int argc, char *argv[]) {
     Arguments arguments{argc, argv};

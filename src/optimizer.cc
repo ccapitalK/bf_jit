@@ -1,4 +1,3 @@
-#include <cassert>
 #include <map>
 #include <optional>
 #include <unordered_map>

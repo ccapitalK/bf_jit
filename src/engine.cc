@@ -6,7 +6,6 @@
 #include "engine.hpp"
 #include "interpreter.hpp"
 #include "optimizer.hpp"
-#include "parser.hpp"
 
 template <typename CellType>
 Engine<CellType>::Engine(const Arguments &arguments)

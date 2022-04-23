@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "arguments.hpp"
-#include "error.hpp"
 #include "optimizer.hpp"
 #include "parser.hpp"
 
