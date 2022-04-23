@@ -1,3 +1,4 @@
-*.o
-bf
 test-progs/
+build/
+cmake-build-*
+.idea/
