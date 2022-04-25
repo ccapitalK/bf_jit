@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 #include "elf_parser.hpp"
 
@@ -9,6 +10,12 @@ int main(int argc, char *argv[]) {
     }
     ElfParser parser(argv[1]);
     std::cout << "Name: " << parser.getFilename() << '\n';
-    std::cout << "Kind: " << parser.getElfKind() << '\n';
+    std::string kind = parser.getElfKind();
+    std::cout << "Kind: " << kind << '\n';
+    if (kind != "elf object") {
+        std::cout << "Not an elf object, exiting\n";
+        return 1;
+    }
+    std::cout << "Number of functions: " << parser.countFunctions() << '\n';
     return 0;
 }

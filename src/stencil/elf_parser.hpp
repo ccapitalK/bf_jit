@@ -2,6 +2,17 @@
 
 #include <libelf.h>
 #include <string>
+#include <vector>
+
+struct RuntimePatch {
+    std::string symbolName;
+    size_t offset;
+};
+
+struct CodeBlob {
+    std::vector<std::byte> data;
+    std::vector<RuntimePatch> patches;
+};
 
 class ElfParser {
 public:
@@ -15,6 +26,7 @@ public:
     ~ElfParser() noexcept;
     const char* getFilename();
     const char* getElfKind();
+    size_t countFunctions();
 private:
     int fd_;
     Elf *elfHandle_;

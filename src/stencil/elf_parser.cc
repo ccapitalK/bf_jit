@@ -1,6 +1,8 @@
 #include <cstring>
 #include <fcntl.h>
+#include <iostream>
 #include <libelf.h>
+#include <gelf.h>
 #include <unistd.h>
 
 #include "elf_parser.hpp"
@@ -27,8 +29,7 @@ ElfParser::ElfParser(const char *filename)
     }
     elfHandle_ = elf_begin(fd_, ELF_C_READ, nullptr);
     if (elfHandle_ == nullptr) {
-        int error = elf_errno();
-        throw StencilCompilerError("elf_begin(\"", filename, "\") failed: ", elf_errmsg(error));
+        throw StencilCompilerError("elf_begin(\"", filename, "\") failed: ", elf_errmsg(elf_errno()));
     }
 }
 
@@ -57,4 +58,22 @@ const char* ElfParser::getElfKind() {
     default:
         return "unknown";
     }
+}
+
+size_t ElfParser::countFunctions() {
+    GElf_Ehdr ehdr;
+    if (!gelf_getehdr(elfHandle_, &ehdr)) {
+        throw StencilCompilerError("Failed to read EHdr: ", elf_errmsg(elf_errno()));
+    }
+    int elfClass = gelf_getclass(elfHandle_);
+    if (elfClass == ELFCLASSNONE) {
+        throw StencilCompilerError("Invalid elfclass ELFCLASSNONE");
+    }
+    bool is64Bit = elfClass == ELFCLASS64;
+    char *id = elf_getident(elfHandle_, nullptr);
+    if (!id) {
+        throw StencilCompilerError("elf_getident() failed: ", elf_errmsg(elf_errno()));
+    }
+    std::cout << id << "\n";
+    return 0;
 }
