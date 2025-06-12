@@ -1,7 +1,6 @@
 #pragma once
-
-#include <string>
 #include <vector>
+#include <string>
 
 enum class GetCharBehaviour { EOF_RETURNS_0, EOF_RETURNS_255, EOF_DOESNT_MODIFY };
 
@@ -16,6 +15,10 @@ struct Arguments {
     bool genSyms{false};
     bool useInterpreter{false};
     bool noFlush{false};
-    GetCharBehaviour getCharBehaviour{};
+    GetCharBehaviour getCharBehaviour{GetCharBehaviour::EOF_RETURNS_0};
+
     Arguments(int argc, char *argv[]);
+
+private:
+    void printUsage(const char* progName);
 };
