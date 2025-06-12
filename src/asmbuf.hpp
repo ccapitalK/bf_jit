@@ -1,6 +1,7 @@
 #pragma once
 #include "error.hpp"
 #include <cstring>
+#include <cstdint>
 #include <iostream>
 #include <sstream>
 #include <string_view>
