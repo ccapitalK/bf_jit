@@ -105,7 +105,7 @@ class ASMBuf {
             ss.width(2);
             ss << static_cast<unsigned int>(data[i]);
         }
-        return std::move(ss.str());
+        return ss.str();
     }
     void enter(ASMBufOffset offset) {
         const void *address = static_cast<void *>(data + offset);
