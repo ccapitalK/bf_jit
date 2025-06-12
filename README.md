@@ -9,7 +9,6 @@ memory array wraps around, so programs that depend on that functionality should 
 # Build
 
 ```
-$ git submodule update --init
 $ make
 ```
 
