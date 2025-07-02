@@ -1,10 +1,10 @@
 # BF_JIT
 
-This is a simple interpreter for the Brainfuck language. It uses a 3 address code IR format
-to perform some useful optimizations, which it then just in time compiles into x86_64 machine
-code. As a result of this approach, this interpreter only supports the x86_64 platform. The
-memory array wraps around, so programs that depend on that functionality should work.
-8, 16 and 32 bit cells are supported.
+This is a simple JIT compiler for the Brainfuck language, using a custom machine code generator.
+It uses a 3 address code IR format to perform some useful optimizations, which it then just in
+time compiles into x86_64 machine code. As a result of this approach, this interpreter only
+supports the x86_64 platform. The memory array wraps around, so programs that depend on that
+functionality should work. 8, 16 and 32 bit cells are supported.
 
 # Build
 
