@@ -21,7 +21,7 @@ class ASMBuf {
   public:
     ASMBuf(size_t pages) : used(0), buf_len(pages * PAGE_SIZE), is_exec(false) {
         data = static_cast<unsigned char *>(
-            mmap(nullptr, buf_len, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0));
+            mmap(nullptr, buf_len, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
         if (data == MAP_FAILED) {
             throw JITError("Failed to mmap ASMBuf: ", strerror(errno));
         }
@@ -40,7 +40,7 @@ class ASMBuf {
         // create new mapping
         auto old_data = data;
         data = static_cast<unsigned char *>(
-            mmap(nullptr, 2 * buf_len, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0));
+            mmap(nullptr, 2 * buf_len, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
         if (data == MAP_FAILED) {
             throw JITError("Failed to grow ASMBuf: ", strerror(errno));
         }
