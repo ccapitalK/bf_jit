@@ -52,6 +52,10 @@ Arguments::Arguments(int argc, char *argv[]) :
         switch (c) {
             case 'm':
                 bfMemLength = std::strtoul(optarg, nullptr, 10);
+                if (bfMemLength == 0 || bfMemLength > 1024 * 1024 * 1024) {
+                    std::cerr << "Invalid memory length, max support is 1GB\n";
+                    exit(1);
+                }
                 break;
             case 'w':
                 cellBitWidth = std::strtoul(optarg, nullptr, 10);
