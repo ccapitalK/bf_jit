@@ -76,3 +76,14 @@ std::ostream &operator<<(std::ostream &os, IROpCode code) {
 std::ostream &operator<<(std::ostream &os, const Instruction &ins) {
     return os << ins.code_ << ' ' << ins.a_ << ' ' << ins.b_ << ' ' << ins.c_;
 }
+
+bool Instruction::operator==(const Instruction& other) const noexcept {
+    return code_ == other.code_
+        && a_ == other.a_
+        && b_ == other.b_
+        && c_ == other.c_;
+}
+
+bool Instruction::operator!=(const Instruction& other) const noexcept {
+    return !(*this == other);
+}

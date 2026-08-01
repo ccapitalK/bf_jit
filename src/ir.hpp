@@ -30,4 +30,6 @@ struct Instruction {
     Instruction(IROpCode code, int a, int b, int c) : code_(code), a_(a), b_(b), c_(c) {}
     friend std::istream &operator>>(std::istream &is, Instruction &ins);
     friend std::ostream &operator<<(std::ostream &os, const Instruction &ins);
+    bool operator==(const Instruction& other) const noexcept;
+    bool operator!=(const Instruction& other) const noexcept;
 };

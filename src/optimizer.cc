@@ -46,24 +46,32 @@ bool Optimizer::constPropagatePass() {
     auto finalize = [&](size_t start, size_t end) {
         int tapePosition{};
         size_t codePosition{start};
+        auto writeInst = [&](Instruction inst) {
+            assert(codePosition < end);
+            auto &p = prog();
+            if (p[codePosition] != inst) {
+                sawChange = true;
+            }
+            p[codePosition++] = inst;
+        };
         if (offset != 0 && constants.count(0)) {
-            prog()[codePosition++] = constants[0].genIns();
+            writeInst(constants[0].genIns());
         }
         for (auto [off, fold]: constants) {
             if (off != 0 && off != offset) {
-                prog()[codePosition++] = {IROpCode::ADP, off - tapePosition};
-                prog()[codePosition++] = fold.genIns();
+                writeInst({IROpCode::ADP, off - tapePosition});
+                writeInst(fold.genIns());
                 tapePosition = off;
             }
         }
         if (tapePosition != offset) {
-            prog()[codePosition++] = {IROpCode::ADP, offset - tapePosition};
+            writeInst({IROpCode::ADP, offset - tapePosition});
         }
         if (constants.count(offset)) {
-            prog()[codePosition++] = constants[offset].genIns();
+            writeInst(constants[offset].genIns());
         }
-        for (; codePosition < end; ++codePosition) {
-            prog()[codePosition] = IROpCode::INVALID;
+        while (codePosition < end) {
+            writeInst(IROpCode::INVALID);
         }
     };
     size_t foldStart = 0;
@@ -141,7 +149,7 @@ bool Optimizer::multPass() {
                 }
                 prog()[writeIndex++] = Instruction{IROpCode::CONST, 0};
                 for (; writeIndex < end; ++writeIndex) {
-                    prog()[writeIndex].code_ = IROpCode::INVALID;
+                    prog()[writeIndex] = IROpCode::INVALID;
                 }
             }
             loopStartPosition = {};
