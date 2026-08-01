@@ -84,6 +84,8 @@ ASMBufOffset CodeGenerator<CellType>::compile(const std::vector<Instruction> &pr
 
 template <typename CellType>
 void CodeGenerator<CellType>::generatePrelude() {
+    // Note: The abi requires that the stack must be 16 byte aligned, and guarantees it
+    // is so before we get called.
     /// Prelude to save callee-saved registers
     buf_.write_bytes({
     // push %r12
@@ -200,7 +202,7 @@ void CodeGenerator<CellType>::generateInsAdp(int step) {
 
 template <typename CellType>
 void CodeGenerator<CellType>::generateInsEndLoop(int loopNumber) {
-    const auto loopInfo = loopStarts_[loopNumber];
+    const auto loopInfo = loopStarts_.at(loopNumber);
     const uintptr_t loop_start = loopInfo.first;
     const uintptr_t patch_loc = loopInfo.second;
     {
