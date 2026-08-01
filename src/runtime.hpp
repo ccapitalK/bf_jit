@@ -2,13 +2,13 @@
 
 #include "arguments.hpp"
 
-using GetCharFunc = unsigned char (*)(int);
+using GetCharFunc = unsigned int (*)(int);
 using PutCharFunc = int (*)(int);
 
 extern "C" {
-unsigned char mgetchar_0_on_eof(int);
-unsigned char mgetchar_255_on_eof(int);
-unsigned char mgetchar_nothing_on_eof(int current_cell);
+unsigned int mgetchar_0_on_eof(int);
+unsigned int mgetchar_255_on_eof(int);
+unsigned int mgetchar_nothing_on_eof(int current_cell);
 int mputchar(int c);
 int mputchar_noflush(int c);
 }

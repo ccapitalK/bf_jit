@@ -4,24 +4,25 @@
 #include "error.hpp"
 #include "runtime.hpp"
 
-unsigned char mgetchar_0_on_eof(int) {
+unsigned int mgetchar_0_on_eof(int) {
     int c = getchar();
     return c == EOF ? 0 : c;
 }
 
-unsigned char mgetchar_255_on_eof(int) {
+unsigned int mgetchar_255_on_eof(int) {
     int c = getchar();
     return c == EOF ? 255 : c;
 }
 
-unsigned char mgetchar_nothing_on_eof(int current_cell) {
+unsigned int mgetchar_nothing_on_eof(int current_cell) {
     int c = getchar();
     return c == EOF ? current_cell : c;
 }
 
 int mputchar(int c) {
+    c = putchar(c);
     fflush(stdout);
-    return putchar(c);
+    return c;
 }
 
 int mputchar_noflush(int c) { return putchar(c); }

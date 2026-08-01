@@ -16,22 +16,23 @@ $ make
 
 ```
 $ ./bf --help
-Usage:
-  bf_jit [OPTION...] [input files]
+Usage: ./bf [OPTIONS] [input files]
 
-  -m, --mem-size arg        Number of memory cells (default: 32768)
-      --file-names arg      BF source file names
-  -d, --dump-code           Dump the generated machine code
-      --dump-mem            Dump the first 32 cells of memory after
-                            termination
-  -e, --eof-behaviour arg   Behaviour on eof (one of return-0, return-255,
-                            dont-modify) (default: return-0)
-  -g, --gen-syms            Generate jit symbol maps for debugging purposes
-  -h, --help                Print help
-  -n, --no-flush            Don't flush after each character
-  -w, --cell-bit-width arg  Width of cell in bits (default: 8)
-      --use-interpreter     Don't jit the IR, just interpret it
-  -v, --verbose             Print more information
+JIT-compiling interpreter for brainfuck
+
+Options:
+  -m, --mem-size SIZE        Number of memory cells (default: 32768)
+  -w, --cell-bit-width BITS  Width of cell in bits (8, 16, or 32, default: 8)
+  -0, --no-optimize          Don't optimize the IR
+  -d, --dump-code            Dump the generated machine code
+      --dry-run              Compile the code, but don't run it
+      --dump-mem             Dump the first 32 cells of memory after termination
+  -e, --eof-behaviour MODE   Behaviour on eof (return-0, return-255, dont-modify, default: return-0)
+  -g, --gen-syms             Generate jit symbol maps for debugging purposes
+  -n, --no-flush             Don't flush after each character
+      --use-interpreter      Don't jit the IR, just interpret it
+  -v, --verbose              Print more information
+  -h, --help                 Print this help message
 ```
 
 
