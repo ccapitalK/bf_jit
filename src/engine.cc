@@ -34,7 +34,9 @@ template <typename CellType> void Engine<CellType>::run() {
         in.close();
     }
     auto prog = parser_.compile();
-    optimizer_.optimize(prog);
+    if (arguments_.optimize) {
+        optimizer_.optimize(prog);
+    }
     if (arguments_.dumpCode) {
         std::cout << "Code:\n";
         for (auto ins: prog) {

@@ -15,6 +15,7 @@ struct Arguments {
     bool genSyms{false};
     bool useInterpreter{false};
     bool noFlush{false};
+    bool optimize{true};
     GetCharBehaviour getCharBehaviour{GetCharBehaviour::EOF_RETURNS_0};
 
     Arguments(int argc, char *argv[]);

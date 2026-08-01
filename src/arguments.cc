@@ -12,6 +12,7 @@ void Arguments::printUsage(const char* progName) {
               << "Options:\n"
               << "  -m, --mem-size SIZE        Number of memory cells (default: 32768)\n"
               << "  -w, --cell-bit-width BITS  Width of cell in bits (8, 16, or 32, default: 8)\n"
+              << "  -0, --no-optimize          Don't optimize the IR\n"
               << "  -d, --dump-code            Dump the generated machine code\n"
               << "      --dry-run              Compile the code, but don't run it\n"
               << "      --dump-mem             Dump the first 32 cells of memory after termination\n"
@@ -40,13 +41,14 @@ Arguments::Arguments(int argc, char *argv[]) :
         {"use-interpreter", no_argument, 0, 1003},
         {"verbose", no_argument, 0, 'v'},
         {"help", no_argument, 0, 'h'},
+        {"no-optimize", no_argument, 0, '0'},
         {0, 0, 0, 0}
     };
 
     int option_index = 0;
     int c;
 
-    while ((c = getopt_long(argc, argv, "m:w:de:gnvh", long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "m:w:de:gnvh0", long_options, &option_index)) != -1) {
         switch (c) {
             case 'm':
                 bfMemLength = std::strtoul(optarg, nullptr, 10);
@@ -61,6 +63,9 @@ Arguments::Arguments(int argc, char *argv[]) :
                 break;
             case 'd':
                 dumpCode = true;
+                break;
+            case '0':
+                optimize = false;
                 break;
             case 1001: // --dry-run
                 dryRun = true;
