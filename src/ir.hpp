@@ -33,3 +33,8 @@ struct Instruction {
     bool operator==(const Instruction& other) const noexcept;
     bool operator!=(const Instruction& other) const noexcept;
 };
+
+// map x into [0, len), needed because of C++'s % weirdness with negative numbers
+static constexpr ssize_t wrapOffset(ssize_t x, ssize_t len) {
+    return ((x % len) + len) % len;
+}

@@ -9,7 +9,7 @@
 template <typename CellType>
 void interpret(const std::vector<Instruction> &prog, std::vector<CellType> &bfMem, const Arguments &args) {
     const ssize_t BFMEM_LENGTH = bfMem.size();
-    size_t dp{};
+    ssize_t dp{};
     auto mputchar = putCharFunc(args);
     auto mGetCharFunc = getCharFunc(args);
     std::function<int()> mgetchar = [&]() { return mGetCharFunc(0); };
@@ -44,14 +44,14 @@ void interpret(const std::vector<Instruction> &prog, std::vector<CellType> &bfMe
             bfMem[dp] += ins.a_;
             break;
         case IROpCode::MUL: {
-            auto remote = (dp + ins.a_) % BFMEM_LENGTH;
+            auto remote = wrapOffset(dp + ins.a_, BFMEM_LENGTH);
             bfMem[remote] += ins.b_ * bfMem[dp];
         } break;
         case IROpCode::CONST:
             bfMem[dp] = ins.a_;
             break;
         case IROpCode::ADP:
-            dp = (dp + ins.a_) % BFMEM_LENGTH;
+            dp = wrapOffset(dp + ins.a_, BFMEM_LENGTH);
             break;
         case IROpCode::IN:
             bfMem[dp] = mgetchar();

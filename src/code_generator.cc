@@ -165,8 +165,7 @@ void CodeGenerator<CellType>::generateInsAdd(CellType step) {
 
 template <typename CellType>
 void CodeGenerator<CellType>::generateInsAdp(int step) {
-    // map ins.a_ into [0, BFMEM_LENGTH), needed because of C++'s % weirdness with negative numbers
-    const int adjustedStep = ((step % BFMEM_LENGTH) + BFMEM_LENGTH) % BFMEM_LENGTH;
+    const int adjustedStep = wrapOffset(step, BFMEM_LENGTH);
     if (adjustedStep == 1) {
         buf_.write_bytes({
         // inc %r11
@@ -325,8 +324,7 @@ void CodeGenerator<CellType>::generateInsLoop(int loopNumber) {
 
 template <typename CellType>
 void CodeGenerator<CellType>::generateInsMul(int offset, CellType multFactor) {
-    // map ins.a_ into [0, BFMEM_LENGTH), needed because of C++'s % weirdness with negative numbers
-    const size_t destOffset = ((offset % BFMEM_LENGTH) + BFMEM_LENGTH) % BFMEM_LENGTH;
+    const size_t destOffset = wrapOffset(offset, BFMEM_LENGTH);
     /// Strategy:
     /// load index of remote into rcx
     buf_.write_bytes({
