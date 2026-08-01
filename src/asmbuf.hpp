@@ -61,7 +61,9 @@ class ASMBuf {
         } else {
             prot = PROT_READ | PROT_WRITE;
         }
-        mprotect(data, buf_len, prot);
+        if (mprotect(data, buf_len, prot)) {
+            throw JITError("mprotect() failed!");
+        }
         is_exec = executable;
     }
     void write_bytes(std::initializer_list<unsigned char> bytes) {
