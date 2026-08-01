@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "arguments.hpp"
+#include "error.hpp"
 #include "interpreter.hpp"
 #include "ir.hpp"
 #include "runtime.hpp"

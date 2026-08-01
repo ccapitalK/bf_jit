@@ -1,8 +1,7 @@
 #pragma once
 
+#include <cstdint>
 #include <iostream>
-
-#include "error.hpp"
 
 enum class IROpCode {
     ADD,      // Add to current cell
@@ -35,6 +34,6 @@ struct Instruction {
 };
 
 // map x into [0, len), needed because of C++'s % weirdness with negative numbers
-static constexpr ssize_t wrapOffset(ssize_t x, ssize_t len) {
+constexpr ssize_t wrapOffset(ssize_t x, ssize_t len) {
     return ((x % len) + len) % len;
 }

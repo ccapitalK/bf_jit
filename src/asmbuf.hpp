@@ -32,22 +32,27 @@ class ASMBuf {
     }
     ~ASMBuf() {
         if (data != nullptr) {
+            // Not checking munmap because we are discarding, and this is a destructor
             munmap(data, buf_len);
             data = nullptr;
         }
     }
     void grow() {
         // create new mapping
-        auto old_data = data;
-        data = static_cast<unsigned char *>(
+        auto new_buffer = static_cast<unsigned char *>(
             mmap(nullptr, 2 * buf_len, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
-        if (data == MAP_FAILED) {
+        if (new_buffer == MAP_FAILED) {
             throw JITError("Failed to grow ASMBuf: ", strerror(errno));
         }
         // copy data
-        memcpy(data, old_data, used);
+        memcpy(new_buffer, data, used);
+
         // remove old mapping
-        munmap(old_data, buf_len);
+        if (munmap(data, buf_len)) {
+            data = nullptr;
+            throw JITError("Failed to unmap ASMBuf: ", strerror(errno));
+        }
+        data = new_buffer;
         // synchronize attributes
         buf_len *= 2;
         set_executable(is_exec);
@@ -62,7 +67,7 @@ class ASMBuf {
             prot = PROT_READ | PROT_WRITE;
         }
         if (mprotect(data, buf_len, prot)) {
-            throw JITError("mprotect() failed!");
+            throw JITError("Failed to mprotect ASMBuf: ", strerror(errno));
         }
         is_exec = executable;
     }
