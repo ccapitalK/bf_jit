@@ -229,24 +229,21 @@ void CodeGenerator<CellType>::generateInsEndLoop(int loopNumber) {
 template <typename CellType>
 void CodeGenerator<CellType>::generateInsIn() {
     if (getCharBehaviour == GetCharBehaviour::EOF_DOESNT_MODIFY) {
-        buf_.write_bytes({
-        // xor %edi, %edi
-            0x31, 0xff,
-        });
+        // We want to preserve all the contents of the cell if it's not modified
         if constexpr (std::is_same<CellType, char>::value) {
             buf_.write_bytes({
-            // mov %dil, [r10+r11]
-                0x43, 0x8a, 0x3c, 0x1a,
+            // movzx %edi, byte [r10+r11]
+                0x43, 0x0f, 0xb6, 0x3c, 0x1a,
             });
         } else if constexpr (std::is_same<CellType, short>::value) {
             buf_.write_bytes({
-            // mov %dil, [r10+r11*2]
-                0x43, 0x8a, 0x3c, 0x5a,
+            // movzx %edi, word [r10+r11*2]
+                0x43, 0x0f, 0xb7, 0x3c, 0x5a,
             });
         } else {
             buf_.write_bytes({
-            // mov %dil, [r10+r11*4]
-                0x43, 0x8a, 0x3c, 0x9a,
+            // mov %edi, [r10+r11*4]
+                0x43, 0x8b, 0x3c, 0x9a,
             });
         }
     }
